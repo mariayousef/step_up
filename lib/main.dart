@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:step_up/child_data_screen.dart';
 import 'splash_screen.dart';
 import 'onboarding_screen.dart';
-import 'login_screen.dart';
+import 'LoginScreen.dart';
 import 'signup_screen.dart';
 import 'bracelet_instruction_screen.dart';
 import 'qr_scanner_screen.dart';

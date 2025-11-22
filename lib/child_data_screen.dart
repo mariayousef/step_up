@@ -1,5 +1,7 @@
+// ChildDataScreen.dart
 import 'package:flutter/material.dart';
 import 'package:step_up/app_colors.dart';
+import 'wifi_pairing_screen.dart'; // تأكدي تضيفي import للشاشة الجديدة
 
 class ChildDataScreen extends StatefulWidget {
   const ChildDataScreen({super.key});
@@ -11,7 +13,15 @@ class ChildDataScreen extends StatefulWidget {
 class _ChildDataScreenState extends State<ChildDataScreen> {
   final nameController = TextEditingController();
   final ageController = TextEditingController();
-  final parentPhoneController = TextEditingController();
+
+  String selectedGender = 'Boy'; // الافتراضي
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    ageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +57,7 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
               controller: nameController,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.person, color: AppColors.primary),
-                labelText: 'Child Name',
+                labelText: "Child's Name",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -55,13 +65,13 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Age
+            // Child Age
             TextField(
               controller: ageController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.cake, color: AppColors.primary),
-                labelText: 'Age',
+                labelText: "Child's Age",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -69,33 +79,56 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Parent Phone
-            TextField(
-              controller: parentPhoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.phone, color: AppColors.primary),
-                labelText: 'Parent Phone Number',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            // Child Gender
+            Row(
+              children: [
+                const Text(
+                  "Child's Gender:",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-              ),
+                const SizedBox(width: 20),
+                ChoiceChip(
+                  label: const Text('Boy'),
+                  selected: selectedGender == 'Boy',
+                  selectedColor: AppColors.primary.withOpacity(0.2),
+                  onSelected: (bool selected) {
+                    setState(() {
+                      selectedGender = 'Boy';
+                    });
+                  },
+                ),
+                const SizedBox(width: 10),
+                ChoiceChip(
+                  label: const Text('Girl'),
+                  selected: selectedGender == 'Girl',
+                  selectedColor: AppColors.primary.withOpacity(0.2),
+                  onSelected: (bool selected) {
+                    setState(() {
+                      selectedGender = 'Girl';
+                    });
+                  },
+                ),
+              ],
             ),
 
             const SizedBox(height: 30),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
               onPressed: () {
-                Navigator.pushNamed(context, '/home');
+                // تنقل للشاشة الخاصة بالـ Wi-Fi pairing
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const WifiPairingScreen()),
+                );
               },
               child: const Text(
-                'Submit',
+                'Complete Pairing',
                 style: TextStyle(fontSize: 18, color: Colors.white),
               ),
             ),
