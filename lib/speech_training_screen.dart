@@ -1,0 +1,292 @@
+import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'app_colors.dart';
+
+class SpeechTrainingScreen extends StatefulWidget {
+  const SpeechTrainingScreen({super.key});
+
+  @override
+  State<SpeechTrainingScreen> createState() => _SpeechTrainingScreenState();
+}
+
+class _SpeechTrainingScreenState extends State<SpeechTrainingScreen> {
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  bool _isRecording = false;
+
+  Future<void> _toggleRecording() async {
+    if (_isRecording) {
+      // 🔴 وقف التسجيل
+      final path = await _audioRecorder.stop();
+      setState(() => _isRecording = false);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Recording saved: $path')),
+      );
+    } else {
+      // 🟢 طلب إذن المايك
+      final status = await Permission.microphone.request();
+      if (!status.isGranted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone permission denied')),
+        );
+        return;
+      }
+
+      // 📁 جهّزي مسار الملف اللي هيتسجل فيه الصوت
+      final dir = await getApplicationDocumentsDirectory();
+      final filePath =
+          '${dir.path}/speech_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      // ▶️ ابدأ التسجيل بالطريقة المطلوبة في AudioRecorder
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          sampleRate: 44100,
+          bitRate: 128000,
+        ),
+        path: filePath,
+      );
+
+      setState(() => _isRecording = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _audioRecorder.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFE6F1FF),
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Speech Training',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        centerTitle: true,
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: Row(
+              children: [
+                Icon(Icons.star_rounded, color: Colors.amber),
+                SizedBox(width: 4),
+                Text(
+                  '0',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFFE7F0FF),
+              Color(0xFFD9D7FF),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              // كارت الكلمة
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    vertical: 24, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      '🍎',
+                      style: TextStyle(fontSize: 60),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Apple',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.center,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: AppColors.primary.withOpacity(0.6),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 8,
+                          ),
+                        ),
+                        onPressed: () {
+                          // TODO: شغّلي صوت الكلمة لو حبيتي بعدين
+                        },
+                        icon: const Icon(
+                          Icons.volume_up_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                        label: const Text(
+                          'Listen',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // كارت waveform بسيط
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    vertical: 20, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(
+                    12,
+                        (index) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: 6,
+                      height: _isRecording
+                          ? ((index % 3) + 1) * 12.0
+                          : ((index % 2) + 1) * 6.0,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary
+                            .withOpacity(_isRecording ? 0.9 : 0.5),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const Spacer(),
+
+              // زر المايك
+              Column(
+                children: [
+                  GestureDetector(
+                    onTap: _toggleRecording,
+                    child: Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isRecording
+                            ? Colors.redAccent
+                            : AppColors.primary,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (_isRecording
+                                ? Colors.redAccent
+                                : AppColors.primary)
+                                .withOpacity(0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        _isRecording
+                            ? Icons.stop_rounded
+                            : Icons.mic_rounded,
+                        color: Colors.white,
+                        size: 34,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _isRecording ? 'Tap to stop' : 'Tap to record',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      3,
+                          (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: index == 1 ? 22 : 8,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: index == 1
+                              ? AppColors.primary
+                              : AppColors.outline,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

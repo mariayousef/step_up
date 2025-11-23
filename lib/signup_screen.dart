@@ -118,7 +118,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                         onPressed: () {
-                          Navigator.pushReplacementNamed(context, '/bracelet_instruction');
+                          Navigator.pushReplacementNamed(context, '/child_info');
                         },
                         child: const Text(
                           "Sign Up",

@@ -1,126 +1,154 @@
 import 'package:flutter/material.dart';
-import 'LoginScreen.dart'; // Make sure this import is added
+import 'pin_storage.dart';
+import 'LoginScreen.dart'; // تأكد أن ملف LoginScreen موجود لديك
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
+  // ====== Child Mode PIN ======
   void _showChildModePinDialog(BuildContext context) {
+    final pinController = TextEditingController();
+    final confirmPinController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Child Mode PIN'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Set a 4-digit PIN to secure Child Mode:'),
-            const SizedBox(height: 20),
-            TextFormField(
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Enter PIN',
-                counterText: '',
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Confirm PIN',
-                counterText: '',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('PIN set successfully!')),
-              );
-            },
-            child: const Text('Save PIN'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showNotificationSettingsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          bool progressNotifications = true;
-          bool locationAlerts = true;
-          bool weeklyReports = false;
-
-          return AlertDialog(
-            title: const Text('Notification Settings'),
-            content: Column(
+          title: const Text('Child Mode PIN'),
+          content: Form(
+            key: formKey,
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SwitchListTile(
-                  title: const Text('Progress Updates'),
-                  subtitle: const Text('Daily progress notifications'),
-                  value: progressNotifications,
-                  onChanged: (value) {
-                    setState(() {
-                      progressNotifications = value;
-                    });
+                const Text('Set a 4-digit PIN to secure Child Mode:'),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: pinController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Enter PIN',
+                    counterText: '',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Please enter a PIN';
+                    if (value.length != 4) return 'PIN must be 4 digits';
+                    if (int.tryParse(value) == null) return 'PIN must be numbers only';
+                    return null;
                   },
                 ),
-                SwitchListTile(
-                  title: const Text('Location Alerts'),
-                  subtitle: const Text('Safe zone entry/exit alerts'),
-                  value: locationAlerts,
-                  onChanged: (value) {
-                    setState(() {
-                      locationAlerts = value;
-                    });
-                  },
-                ),
-                SwitchListTile(
-                  title: const Text('Weekly Reports'),
-                  subtitle: const Text('Weekly progress summary'),
-                  value: weeklyReports,
-                  onChanged: (value) {
-                    setState(() {
-                      weeklyReports = value;
-                    });
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: confirmPinController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Confirm PIN',
+                    counterText: '',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Please confirm PIN';
+                    if (value != pinController.text) return 'PINs do not match';
+                    return null;
                   },
                 ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Notification settings saved!')),
-                  );
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          );
-        },
-      ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+
+                final pin = pinController.text.trim();
+                await PinStorage.savePin(pin);
+
+                if (!context.mounted) return;
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('PIN set successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              child: const Text('Save PIN'),
+            ),
+          ],
+        );
+      },
     );
   }
 
+  // ====== Notifications ======
+  void _showNotificationSettingsDialog(BuildContext context) {
+    bool progressNotifications = true;
+    bool locationAlerts = true;
+    bool weeklyReports = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Notification Settings'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile(
+                    title: const Text('Progress Updates'),
+                    subtitle: const Text('Daily progress notifications'),
+                    value: progressNotifications,
+                    onChanged: (value) => setState(() => progressNotifications = value),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Location Alerts'),
+                    subtitle: const Text('Safe zone entry/exit alerts'),
+                    value: locationAlerts,
+                    onChanged: (value) => setState(() => locationAlerts = value),
+                  ),
+                  SwitchListTile(
+                    title: const Text('Weekly Reports'),
+                    subtitle: const Text('Weekly progress summary'),
+                    value: weeklyReports,
+                    onChanged: (value) => setState(() => weeklyReports = value),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Notification settings saved!')),
+                    );
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ====== About / Help / Logout ======
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -129,166 +157,14 @@ class SettingsScreen extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.help_outline),
-              title: const Text('Help & Support'),
-              onTap: () {
-                Navigator.pop(context);
-                _showHelpSupportDialog(context);
-              },
-            ),
+            ListTile(leading: const Icon(Icons.help_outline), title: const Text('Help & Support'), onTap: () => Navigator.pop(context)),
             const Divider(),
-            ListTile(
-              leading: const Icon(Icons.description_outlined),
-              title: const Text('Terms of Service'),
-              onTap: () {
-                Navigator.pop(context);
-                _showTermsDialog(context);
-              },
-            ),
+            ListTile(leading: const Icon(Icons.description_outlined), title: const Text('Terms of Service'), onTap: () => Navigator.pop(context)),
             const Divider(),
-            ListTile(
-              leading: const Icon(Icons.security_outlined),
-              title: const Text('Privacy Policy'),
-              onTap: () {
-                Navigator.pop(context);
-                _showPrivacyDialog(context);
-              },
-            ),
+            ListTile(leading: const Icon(Icons.security_outlined), title: const Text('Privacy Policy'), onTap: () => Navigator.pop(context)),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showHelpSupportDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Help & Support'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Need assistance? We\'re here to help!',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              _buildContactInfo('Email', 'support@autismapp.com', Icons.email),
-              _buildContactInfo('Phone', '+1 (555) 123-4567', Icons.phone),
-              _buildContactInfo('Website', 'www.autismapp.com', Icons.language),
-              const SizedBox(height: 16),
-              const Text(
-                'Office Hours: Mon-Fri, 9AM-5PM',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTermsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Terms of Service'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text(
-                'Last updated: December 2024',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'By using Autism Companion App, you agree to the following terms:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 12),
-              Text('• Use the app for its intended purpose only'),
-              Text('• Maintain the confidentiality of your account'),
-              Text('• Not misuse any personal data'),
-              Text('• Follow all applicable laws and regulations'),
-              SizedBox(height: 12),
-              Text(
-                'We reserve the right to modify these terms at any time.',
-                style: TextStyle(fontStyle: FontStyle.italic),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('I Understand'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPrivacyDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Privacy Policy'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text(
-                'Your privacy is important to us.',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Data We Collect:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text('• Child progress and development data'),
-              Text('• Location data for safe zones'),
-              Text('• App usage statistics'),
-              SizedBox(height: 12),
-              Text(
-                'How We Use Data:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text('• Provide personalized therapy recommendations'),
-              Text('• Track progress and generate reports'),
-              Text('• Improve app features and user experience'),
-              SizedBox(height: 12),
-              Text(
-                'We never sell your personal data to third parties.',
-                style: TextStyle(fontStyle: FontStyle.italic, color: Colors.green),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Accept'),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
       ),
     );
   }
@@ -300,61 +176,18 @@ class SettingsScreen extends StatelessWidget {
         title: const Text('Log Out'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context), // Just close dialog, no logout
-            child: const Text('Cancel'), // Fixed typo
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // Close the dialog
-              _performLogout(context); // Navigate to login screen
+              Navigator.pop(context);
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (route) => false,
+              );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Log Out'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _performLogout(BuildContext context) {
-    // Show logout confirmation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Logged out successfully!'),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    // Navigate to login screen immediately without delay
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false, // Remove all previous routes
-    );
-  }
-
-
-  Widget _buildContactInfo(String title, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: Colors.green),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              Text(
-                value,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
           ),
         ],
       ),
@@ -367,64 +200,25 @@ class SettingsScreen extends StatelessWidget {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: const Text(
-          'Settings',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+        title: const Text('Settings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Child Mode PIN
-            _buildSettingsCard(
-              title: 'Child Mode Security',
-              subtitle: 'Set PIN for Child Mode access',
-              icon: Icons.child_friendly,
-              onTap: () => _showChildModePinDialog(context),
-            ),
+            _buildSettingsCard(title: 'Child Mode Security', subtitle: 'Set PIN for Child Mode access', icon: Icons.child_friendly, onTap: () => _showChildModePinDialog(context)),
             const SizedBox(height: 16),
-
-            // Notifications
-            _buildSettingsCard(
-              title: 'Notifications',
-              subtitle: 'Manage app notifications',
-              icon: Icons.notifications_active,
-              onTap: () => _showNotificationSettingsDialog(context),
-            ),
+            _buildSettingsCard(title: 'Notifications', subtitle: 'Manage app notifications', icon: Icons.notifications_active, onTap: () => _showNotificationSettingsDialog(context)),
             const SizedBox(height: 16),
-
-            // About
-            _buildSettingsCard(
-              title: 'About',
-              subtitle: 'Help, Terms, Privacy Policy',
-              icon: Icons.info_outline,
-              onTap: () => _showAboutDialog(context),
-            ),
+            _buildSettingsCard(title: 'About', subtitle: 'Help, Terms, Privacy Policy', icon: Icons.info_outline, onTap: () => _showAboutDialog(context)),
             const SizedBox(height: 32),
-
-            // Log Out Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => _showLogoutDialog(context),
                 icon: const Icon(Icons.logout),
-                label: const Text(
-                  'Log Out',
-                  style: TextStyle(fontSize: 16),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                label: const Text('Log Out'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16)),
               ),
             ),
           ],
@@ -433,39 +227,18 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingsCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildSettingsCard({required String title, required String subtitle, required IconData icon, required VoidCallback onTap}) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), shape: BoxShape.circle),
           child: Icon(icon, color: Colors.green),
         ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
-        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: onTap,
       ),

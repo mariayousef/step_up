@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:step_up/child_data_screen.dart';
+import 'app_colors.dart';
 import 'splash_screen.dart';
 import 'onboarding_screen.dart';
 import 'LoginScreen.dart';
 import 'signup_screen.dart';
-import 'bracelet_instruction_screen.dart';
-import 'qr_scanner_screen.dart';
-import 'home_screen.dart';
-import 'app_colors.dart';
+import 'home_screen.dart'; // تأكد أن لديك هذا الملف أو استبدله بـ ProfileScreen للتجربة
+import 'child_data_screen.dart';
+import 'ProfileScreen.dart'; // أضفت هذا لتتمكن من تجربته مباشرة
 
 void main() {
   runApp(const StepUpApp());
@@ -26,17 +25,15 @@ class StepUpApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
         useMaterial3: true,
       ),
-
-      home: const SplashScreen(),
+      home: const OnboardingScreen(),
 
       routes: {
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
-        '/bracelet_instruction': (context) => const BraceletInstructionScreen(),
-        '/qr_scanner': (context) => const QrScannerScreen(),
         '/child_info': (context) => const ChildDataScreen(),
         '/home': (context) => const HomeScreen(),
+        '/profile': (context) => const ProfileScreen(),
       },
     );
   }

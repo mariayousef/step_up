@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'SettingsScreen.dart';
+import 'pin_storage.dart';
+import 'child_dashboard_screen.dart';
+import 'app_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -9,17 +12,14 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // Sample data
-  Map<String, dynamic> parentInfo = {
-    'name': 'Mohamed Ali',
-  };
-
+  Map<String, dynamic> parentInfo = {'name': 'Mohamed Ali'};
   Map<String, dynamic> childInfo = {
     'childName': 'Ahmed Mohamed',
     'age': '5 years',
     'gender': 'Male',
     'phoneNumber': '+1234567890',
-    'caseInformation': 'Autism Spectrum Disorder. The child shows strengths in visual learning and challenges in social communication and interaction. Currently working on improving eye contact and basic communication skills.',
+    'caseInformation':
+    'Autism Spectrum Disorder. The child shows strengths in visual learning.',
   };
 
   bool _isEditMode = false;
@@ -28,18 +28,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers for all editable fields
-    for (var key in parentInfo.keys) {
-      _controllers[key] = TextEditingController(text: parentInfo[key]);
-    }
-    for (var key in childInfo.keys) {
-      _controllers[key] = TextEditingController(text: childInfo[key]);
-    }
+    parentInfo.forEach(
+          (key, value) =>
+      _controllers[key] = TextEditingController(text: value.toString()),
+    );
+    childInfo.forEach(
+          (key, value) =>
+      _controllers[key] = TextEditingController(text: value.toString()),
+    );
   }
 
   @override
   void dispose() {
-    // Dispose all controllers
     for (var controller in _controllers.values) {
       controller.dispose();
     }
@@ -49,48 +49,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _toggleEditMode() {
     setState(() {
       _isEditMode = !_isEditMode;
-      if (!_isEditMode) {
-        // Save changes when exiting edit mode
-        _saveChanges();
-      }
+      if (!_isEditMode) _saveChanges();
     });
   }
 
   void _saveChanges() {
     setState(() {
-      for (var key in parentInfo.keys) {
+      parentInfo.forEach((key, _) {
         parentInfo[key] = _controllers[key]!.text;
-      }
-      for (var key in childInfo.keys) {
+      });
+      childInfo.forEach((key, _) {
         childInfo[key] = _controllers[key]!.text;
-      }
+      });
     });
-    // In real app, you would save to database/API here
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Profile updated successfully!'),
+        content: Text('Profile updated!'),
         backgroundColor: Colors.green,
       ),
     );
   }
 
-  void _enterChildMode() {
-    // Navigate to child mode interface
+  // ================== Child Mode Logic ==================
+  Future<void> _enterChildMode() async {
+    final hasPin = await PinStorage.hasPin();
+
+    if (!hasPin) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Child Mode PIN'),
+          content: const Text(
+            'You have not set a PIN yet.\nPlease go to Settings first.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final pinController = TextEditingController();
+
+    if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Enter Child Mode'),
-        content: const Text('Switch to child-friendly interface?'),
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Enter Child Mode PIN'),
+        content: TextField(
+          controller: pinController,
+          keyboardType: TextInputType.number,
+          maxLength: 4,
+          obscureText: true,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'PIN',
+            counterText: '',
+          ),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Navigate to child mode screen
-              // Navigator.push(context, MaterialPageRoute(builder: (_) => ChildModeScreen()));
+            onPressed: () async {
+              final enteredPin = pinController.text.trim();
+              final isCorrect = await PinStorage.isCorrectPin(enteredPin);
+
+              if (!mounted) return;
+
+              if (isCorrect) {
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Correct PIN!'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(milliseconds: 800),
+                  ),
+                );
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ChildDashboardScreen(),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Wrong PIN'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             child: const Text('Enter'),
           ),
@@ -99,33 +158,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _openSettings() {
-    // Navigate to SettingsScreen
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const SettingsScreen()),
-    );
-  }
-
+  // ================== UI ==================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.green,
+        backgroundColor: AppColors.primary,
         title: const Text(
           'Profile',
           style: TextStyle(
-            fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
+        centerTitle: true,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: _openSettings,
-            tooltip: 'Settings',
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
           ),
         ],
       ),
@@ -133,11 +188,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Profile Header with Parent Name and Child Mode Button
             _buildProfileHeader(),
             const SizedBox(height: 24),
-
-            // Child Information Section with Edit Button
             _buildChildInfoSection(),
           ],
         ),
@@ -146,94 +198,99 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // Profile Avatar
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.green.shade100,
-                border: Border.all(color: Colors.green, width: 3),
-              ),
-              child: const Icon(
-                Icons.person,
-                size: 40,
-                color: Colors.green,
-              ),
-            ),
-            const SizedBox(height: 16),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Avatar
+          const CircleAvatar(
+            radius: 38,
+            backgroundColor: AppColors.primary,
+            child: Icon(Icons.person, color: Colors.white, size: 40),
+          ),
 
-            // Parent Name (Editable in edit mode)
-            _isEditMode
-                ? TextFormField(
-              controller: _controllers['name'],
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12),
-              ),
-            )
-                : Text(
-              parentInfo['name']!,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Parent Account',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 20),
+          const SizedBox(height: 14),
 
-            // Child Mode Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _enterChildMode,
-                icon: const Icon(Icons.child_care),
-                label: const Text('Enter Child Mode'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+          // Parent name
+          _isEditMode
+              ? TextFormField(
+            controller: _controllers['name'],
+            textAlign: TextAlign.center,
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding:
+              const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          )
+              : Text(
+            parentInfo['name']!,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMain,
+            ),
+          ),
+
+          const SizedBox(height: 4),
+          const Text(
+            'Parent Account',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Enter Child Mode
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _enterChildMode,
+              icon: const Icon(Icons.child_care),
+              label: const Text(
+                'Enter Child Mode',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
+
   Widget _buildChildInfoSection() {
     return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with Edit Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -242,42 +299,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: AppColors.textMain,
                   ),
                 ),
-                ElevatedButton.icon(
+                ElevatedButton(
                   onPressed: _toggleEditMode,
-                  icon: Icon(_isEditMode ? Icons.save : Icons.edit),
-                  label: Text(_isEditMode ? 'Save' : 'Edit'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isEditMode ? Colors.green : Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    backgroundColor:
+                    _isEditMode ? AppColors.primary : Colors.white,
+                    foregroundColor:
+                    _isEditMode ? Colors.white : AppColors.primary,
+                    side: BorderSide(
+                      color: AppColors.primary.withOpacity(0.7),
+                    ),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    textStyle: const TextStyle(fontSize: 13),
                   ),
+                  child: Text(_isEditMode ? 'Save' : 'Edit'),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             const Divider(),
             const SizedBox(height: 8),
-
-            // Child Name
             _buildInfoRow('Child Name', 'childName', Icons.badge),
+            const SizedBox(height: 12),
+            _buildInfoRow('Age', 'age', Icons.cake_outlined),
+            const SizedBox(height: 12),
+            _buildInfoRow('Gender', 'gender', Icons.wc),
+            const SizedBox(height: 12),
+            _buildInfoRow('Phone', 'phoneNumber', Icons.phone),
             const SizedBox(height: 16),
-
-            // Age
-            _buildInfoRow('Age', 'age', Icons.cake),
-            const SizedBox(height: 16),
-
-            // Gender
-            _buildInfoRow('Gender', 'gender', Icons.person_outline),
-            const SizedBox(height: 16),
-
-            // Phone Number
-            _buildInfoRow('Phone Number', 'phoneNumber', Icons.phone),
-            const SizedBox(height: 16),
-
-            // Case Information
-            _buildCaseInformation(),
+            _buildMultilineInfoRow(
+              'Case Information',
+              'caseInformation',
+              Icons.health_and_safety_outlined,
+            ),
           ],
         ),
       ),
@@ -286,9 +344,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildInfoRow(String label, String key, IconData icon) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, color: Colors.green, size: 20),
+        Icon(icon, color: AppColors.primary),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -296,10 +354,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
                 ),
               ),
               const SizedBox(height: 4),
@@ -307,18 +364,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? TextFormField(
                 controller: _controllers[key],
                 decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 6,
+                    horizontal: 8,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               )
                   : Text(
-                key == 'childName' ? childInfo[key]! :
-                key == 'name' ? parentInfo[key]! : childInfo[key]!,
+                childInfo[key] ?? '',
                 style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 15,
+                  color: AppColors.textMain,
                 ),
               ),
             ],
@@ -328,50 +388,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildCaseInformation() {
+  Widget _buildMultilineInfoRow(
+      String label,
+      String key,
+      IconData icon,
+      ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.medical_information, color: Colors.green, size: 20),
+        Icon(icon, color: AppColors.primary),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Case Information',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
+                label,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
                 ),
               ),
               const SizedBox(height: 4),
               _isEditMode
                   ? TextFormField(
-                controller: _controllers['caseInformation'],
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  hintText: 'Describe the child\'s condition, strengths, challenges, and therapy goals...',
+                controller: _controllers[key],
+                maxLines: 3,
+                decoration: InputDecoration(
+                  alignLabelWithHint: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 8,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               )
-                  : Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: Text(
-                  childInfo['caseInformation']!,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.4,
-                  ),
+                  : Text(
+                childInfo[key] ?? '',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textMain,
                 ),
               ),
             ],

@@ -230,13 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // Navigator.pushNamed(context, '/signup');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Sign up feature coming soon!'),
-                          backgroundColor: Colors.blue,
-                        ),
-                      );
+                       Navigator.pushNamed(context, '/signup');
                     },
                     child: const Text(
                       "Sign up",
