@@ -4,9 +4,9 @@ import 'splash_screen.dart';
 import 'onboarding_screen.dart';
 import 'LoginScreen.dart';
 import 'signup_screen.dart';
-import 'home_screen.dart'; // تأكد أن لديك هذا الملف أو استبدله بـ ProfileScreen للتجربة
+import 'home_screen.dart';
 import 'child_data_screen.dart';
-import 'ProfileScreen.dart'; // أضفت هذا لتتمكن من تجربته مباشرة
+import 'ProfileScreen.dart';
 
 void main() {
   runApp(const StepUpApp());
@@ -25,7 +25,7 @@ class StepUpApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
         useMaterial3: true,
       ),
-      home: const OnboardingScreen(),
+      home: const SplashScreen(),
 
       routes: {
         '/onboarding': (context) => const OnboardingScreen(),

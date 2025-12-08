@@ -1,7 +1,8 @@
 // ChildDataScreen.dart
 import 'package:flutter/material.dart';
+import 'package:step_up/LoginScreen.dart';
 import 'package:step_up/app_colors.dart';
-import 'wifi_pairing_screen.dart'; // تأكدي تضيفي import للشاشة الجديدة
+import 'package:step_up/signup_screen.dart';
 
 class ChildDataScreen extends StatefulWidget {
   const ChildDataScreen({super.key});
@@ -121,16 +122,11 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                 ),
               ),
               onPressed: () {
-                // تنقل للشاشة الخاصة بالـ Wi-Fi pairing
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const WifiPairingScreen()),
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
                 );
-              },
-              child: const Text(
-                'Complete Pairing',
-                style: TextStyle(fontSize: 18, color: Colors.white),
-              ),
+              }, child: Text("Sign Up")
             ),
           ],
         ),

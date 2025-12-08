@@ -123,7 +123,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ===================== Home Content Screen =====================
 class HomeContentScreen extends StatelessWidget {
   final bool isChildInsideZone;
   final VoidCallback onOpenLocation;
