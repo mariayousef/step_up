@@ -5,17 +5,27 @@ import 'development_progress_card.dart';
 import 'bottom_nav_bar.dart';
 import 'LocationScreen.dart';
 import 'ProgressScreen.dart';
-import 'ProfileScreen.dart'; // Make sure to import ProfileScreen
+import 'ProfileScreen.dart';
 import 'NotificationScreen.dart';
+import 'safe_zone_model.dart';
+
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:async';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 // ===================== Child Location Card =====================
 class ChildLocationCard extends StatelessWidget {
+  final LatLng childLocation;
   final bool isInsideZone;
+  final String? currentZoneName;
   final VoidCallback onOpenLocation;
 
   const ChildLocationCard({
     super.key,
+    required this.childLocation,
     required this.isInsideZone,
+    required this.currentZoneName,
     required this.onOpenLocation,
   });
 
@@ -24,44 +34,72 @@ class ChildLocationCard extends StatelessWidget {
     return GestureDetector(
       onTap: onOpenLocation,
       child: Container(
-        height: 150,
         width: double.infinity,
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
           color: isInsideZone ? Colors.green.shade50 : Colors.red.shade50,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isInsideZone ? Colors.green : Colors.red,
-            width: 2,
+            width: 1.5,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Stack(
+        child: Row(
           children: [
-            const Center(
-              child: Text(
-                'Map Placeholder',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isInsideZone ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isInsideZone ? Icons.check_circle : Icons.warning_rounded,
+                color: isInsideZone ? Colors.green : Colors.red,
+                size: 32,
               ),
             ),
-            Positioned(
-              top: 8,
-              right: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isInsideZone ? Colors.green : Colors.red,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  isInsideZone ? 'Inside Safe Zone' : 'Outside Safe Zone',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isInsideZone
+                        ? "Located at: ${currentZoneName ?? 'Unknown Zone'}"
+                        : "Attention needed! Outside safe areas.",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isInsideZone ? Colors.green.shade800 : Colors.red.shade800,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isInsideZone
+                        ? "Located at: ${currentZoneName ?? 'Safe Zone'}"
+                        : "Attention needed! Outside safe areas.",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isInsideZone ? Colors.green.shade600 : Colors.red.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "Coordinates: ${childLocation.latitude.toStringAsFixed(4)}, ${childLocation.longitude.toStringAsFixed(4)}",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -82,57 +120,140 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  bool get isChildInsideZone => true;
+  @override
+  void initState() {
+    super.initState();
+    // Tracking is handled in LocationScreen
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  Future<void> _onRefresh() async {
+    try {
+      Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      final newLocation = LatLng(pos.latitude, pos.longitude);
+      childLocationNotifier.value = newLocation;
+
+      // ✅ إعادة فحص Safe Zones
+      _recheckSafeZones(newLocation);
+
+    } catch (e) {
+      debugPrint('Refresh Error: $e');
+    }
+  }
+  void _recheckSafeZones(LatLng location) {
+    bool isSafe = false;
+    String? zoneName;
+
+    for (var zone in globalSafeZones) {
+      if (!zone.active) continue;
+
+      final distance = const Distance().as(
+        LengthUnit.Meter,
+        location,
+        LatLng(zone.latitude, zone.longitude),
+      );
+
+      if (distance <= zone.radius) {
+        isSafe = true;
+        zoneName = zone.name;
+        break;
+      }
+    }
+
+    isChildSafeNotifier.value = isSafe;
+    currentZoneNameNotifier.value = zoneName;
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> screens = [
-      HomeContentScreen(
-        isChildInsideZone: isChildInsideZone,
-        onOpenLocation: () {
-          setState(() {
-            _selectedIndex = 1;
-          });
-        },
-        onOpenProgress: () {
-          setState(() {
-            _selectedIndex = 2;
-          });
-        },
-      ),
-      const LocationScreen(),
-      const ProgressScreen(),
-      const ProfileScreen(), // Added ProfileScreen as the 4th screen
-    ];
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: screens,
-      ),
-      bottomNavigationBar: CustomBottomNavBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        setState(() {
+          _selectedIndex = 0;
+        });
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: [
+            ValueListenableBuilder<LatLng>(
+              valueListenable: childLocationNotifier,
+              builder: (context, location, _) {
+                return ValueListenableBuilder<bool>(
+                  valueListenable: isChildSafeNotifier,
+                  builder: (context, isSafe, _) {
+                    return ValueListenableBuilder<String?>(
+                      valueListenable: currentZoneNameNotifier,
+                      builder: (context, zoneName, _) {
+                        return HomeContentScreen(
+                          childLocation: location,
+                          isChildInsideZone: isSafe,
+                          currentZoneName: zoneName,
+                          onRefresh: _onRefresh,
+                          onOpenLocation: () {
+                            setState(() {
+                              _selectedIndex = 1;
+                            });
+                          },
+                          onOpenProgress: () {
+                            setState(() {
+                              _selectedIndex = 2;
+                            });
+                          },
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+            const LocationScreen(),
+            const ProgressScreen(),
+            const ProfileScreen(),
+          ],
+        ),
+        bottomNavigationBar: CustomBottomNavBar(
+          currentIndex: _selectedIndex,
+          onTap: (index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+        ),
       ),
     );
   }
 }
 
+// ===================== Home Content Screen =====================
 class HomeContentScreen extends StatelessWidget {
+  final LatLng childLocation;
   final bool isChildInsideZone;
+  final String? currentZoneName;
   final VoidCallback onOpenLocation;
   final VoidCallback onOpenProgress;
+  final RefreshCallback onRefresh;
 
   const HomeContentScreen({
     super.key,
+    required this.childLocation,
     required this.isChildInsideZone,
+    required this.currentZoneName,
     required this.onOpenLocation,
     required this.onOpenProgress,
+    required this.onRefresh,
   });
 
   void _openNotifications(BuildContext context) {
@@ -144,89 +265,98 @@ class HomeContentScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ---------------- Header ----------------
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    padding: const EdgeInsets.all(10),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: AppColors.primary,
-                      size: 34,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        "Welcome back 👋",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textMain,
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ---------------- Header ----------------
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(10),
+                        child: const Icon(
+                          Icons.person_rounded,
+                          color: AppColors.primary,
+                          size: 34,
                         ),
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        "Let's achieve your goals today!",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              "Welcome back 👋",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textMain,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              "Let's achieve your goals today!",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-              // Notification Icon - Now clickable
-              GestureDetector(
-                onTap: () => _openNotifications(context),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.all(10),
-                  child: const Icon(
-                    Icons.notifications_none_rounded,
-                    color: Colors.white,
-                    size: 28,
+                ),
+                GestureDetector(
+                  onTap: () => _openNotifications(context),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+              ],
+            ),
+            const SizedBox(height: 20),
 
-          // ----------- Location Widget -----------
-          ChildLocationCard(
-            isInsideZone: isChildInsideZone,
-            onOpenLocation: onOpenLocation,
-          ),
-          const SizedBox(height: 30),
+            // ----------- Location Widget -----------
+            ChildLocationCard(
+              childLocation: childLocation,
+              isInsideZone: isChildInsideZone,
+              currentZoneName: currentZoneName,
+              onOpenLocation: onOpenLocation,
+            ),
+            const SizedBox(height: 30),
 
-          const HealthOverviewCard(),
-          const SizedBox(height: 30),
+            const HealthOverviewCard(),
+            const SizedBox(height: 30),
 
-          // ----------- Development Progress Widget -----------
-          GestureDetector(
-            onTap: onOpenProgress,
-            child: const DevelopmentProgressCard(),
-          ),
-        ],
+            // ----------- Development Progress Widget -----------
+            GestureDetector(
+              onTap: onOpenProgress,
+              child: const DevelopmentProgressCard(),
+            ),
+          ],
+        ),
       ),
     );
   }
