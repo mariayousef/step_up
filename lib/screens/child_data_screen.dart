@@ -1,6 +1,6 @@
 // ChildDataScreen.dart
 import 'package:flutter/material.dart';
-import 'package:step_up/LoginScreen.dart';
+import 'package:step_up/screens/LoginScreen.dart';
 import 'package:step_up/app_colors.dart';
 
 class ChildDataScreen extends StatefulWidget {

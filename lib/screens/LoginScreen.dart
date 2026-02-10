@@ -1,8 +1,8 @@
 // login_screen.dart
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
+import '../app_colors.dart';
 import 'home_screen.dart';
-
+import 'package:step_up/services/auth_service.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -16,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool isLoading = false;
   bool _obscurePassword = true;
+  final AuthService authService = AuthService();
 
   void login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -25,7 +26,10 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     await Future.delayed(const Duration(seconds: 2));
-    bool loginSuccess = true;
+    bool loginSuccess = await authService.login(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+    );
 
     setState(() {
       isLoading = false;

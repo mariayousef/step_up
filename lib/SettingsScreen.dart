@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pin_storage.dart';
-import 'LoginScreen.dart'; // تأكد أن ملف LoginScreen موجود لديك
+import 'screens/LoginScreen.dart'; // تأكد أن ملف LoginScreen موجود لديك
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});

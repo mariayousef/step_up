@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
-import 'splash_screen.dart';
-import 'onboarding_screen.dart';
-import 'LoginScreen.dart';
-import 'signup_screen.dart';
-import 'home_screen.dart';
-import 'child_data_screen.dart';
-import 'ProfileScreen.dart';
+import 'screens/splash_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/LoginScreen.dart';
+import 'screens/signup_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/child_data_screen.dart';
+import 'screens/ProfileScreen.dart';
 
 void main() {
   runApp(const StepUpApp());
@@ -25,7 +25,7 @@ class StepUpApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
         useMaterial3: true,
       ),
-      home: const SplashScreen(),
+      home: const HomeScreen(),
 
       routes: {
         '/onboarding': (context) => const OnboardingScreen(),

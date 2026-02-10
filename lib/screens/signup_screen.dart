@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
-
+import '../app_colors.dart';
+import 'package:step_up/services/auth_service.dart';
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -20,8 +20,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
+  final AuthService authService = AuthService();
 
-  void _onSignUp() {
+  void _onSignUp() async {
+    print("SIGNUP BUTTON CLICKED");
     if (!_formKey.currentState!.validate()) return;
 
     if (!_acceptTerms) {
@@ -34,10 +36,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    // هنا لوجيك التسجيل اللي هتضيفيه بعدين (API / Firebase ...)
+    bool success = await authService.register(
+      _nameController.text.trim(),
+      _emailController.text.trim(),
+      _phoneController.text.trim(),
+      _passwordController.text.trim(),
+    );
 
-    Navigator.pushReplacementNamed(context, '/child_info');
+    if (success) {
+      Navigator.pushReplacementNamed(context, '/child_info');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Signup failed, please try again'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
+
 
   @override
   void dispose() {

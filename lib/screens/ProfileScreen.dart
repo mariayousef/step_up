@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'SettingsScreen.dart';
-import 'pin_storage.dart';
-import 'child_dashboard_screen.dart';
-import 'app_colors.dart';
+import '../SettingsScreen.dart';
+import '../pin_storage.dart';
+import '../child_dashboard_screen.dart';
+import '../app_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

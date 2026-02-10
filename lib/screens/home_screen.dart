@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
-import 'health_overview_card.dart';
-import 'development_progress_card.dart';
-import 'bottom_nav_bar.dart';
-import 'LocationScreen.dart';
-import 'ProgressScreen.dart';
+import '../app_colors.dart';
+import '../health_overview_card.dart';
+import '../development_progress_card.dart';
+import '../bottom_nav_bar.dart';
+import '../LocationScreen.dart';
+import '../ProgressScreen.dart';
 import 'ProfileScreen.dart'; // Make sure to import ProfileScreen
-import 'NotificationScreen.dart';
+import '../NotificationScreen.dart';
 
 // ===================== Child Location Card =====================
 class ChildLocationCard extends StatelessWidget {
