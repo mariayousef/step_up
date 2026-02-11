@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_colors.dart';
 import 'home_screen.dart';
 import 'package:step_up/services/auth_service.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -14,31 +15,34 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
   bool isLoading = false;
   bool _obscurePassword = true;
+
   final AuthService authService = AuthService();
 
-  void login() async {
+  Future<void> login() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       isLoading = true;
     });
 
-    await Future.delayed(const Duration(seconds: 2));
-    bool loginSuccess = await authService.login(
+    final success = await authService.login(
       _emailController.text.trim(),
       _passwordController.text.trim(),
     );
+
+    if (!mounted) return;
 
     setState(() {
       isLoading = false;
     });
 
-    if (loginSuccess) {
+    if (success) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
             (route) => false,
       );
     } else {
@@ -60,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // خلفية جradient خفيفة
+      // خلفية gradient (زي ما هي)
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -81,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Avatar / Icon
+                    // Avatar
                     CircleAvatar(
                       radius: 42,
                       backgroundColor: AppColors.primary.withOpacity(0.15),
@@ -113,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Card للفورم
+                    // Card الفورم
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -141,8 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
                                 labelText: "Email",
-                                prefixIcon:
-                                const Icon(Icons.email_outlined),
+                                prefixIcon: const Icon(Icons.email_outlined),
                                 labelStyle: const TextStyle(
                                   color: AppColors.textSecondary,
                                 ),
@@ -252,7 +255,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             // Login Button
                             isLoading
                                 ? const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8),
+                              padding:
+                              EdgeInsets.symmetric(vertical: 8),
                               child: CircularProgressIndicator(
                                 color: AppColors.primary,
                               ),
@@ -287,7 +291,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 22),
 
-                    // Sign up text
+                    // Sign up
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

@@ -7,6 +7,7 @@ import 'screens/signup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/child_data_screen.dart';
 import 'screens/ProfileScreen.dart';
+import 'models/register_request_model.dart';
 
 void main() {
   runApp(const StepUpApp());
@@ -25,15 +26,25 @@ class StepUpApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const SplashScreen(),
 
       routes: {
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
-        '/child_info': (context) => const ChildDataScreen(),
         '/home': (context) => const HomeScreen(),
         '/profile': (context) => const ProfileScreen(),
+      },
+
+      onGenerateRoute: (settings) {
+        if (settings.name == '/child_info') {
+          final parent = settings.arguments as ParentModel;
+
+          return MaterialPageRoute(
+            builder: (_) => ChildDataScreen(parent: parent),
+          );
+        }
+        return null;
       },
     );
   }

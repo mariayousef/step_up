@@ -1,10 +1,14 @@
 // ChildDataScreen.dart
 import 'package:flutter/material.dart';
-import 'package:step_up/screens/LoginScreen.dart';
 import 'package:step_up/app_colors.dart';
+import 'package:step_up/screens/LoginScreen.dart';
+import 'package:step_up/services/auth_service.dart';
+import '../models/register_request_model.dart';
 
 class ChildDataScreen extends StatefulWidget {
-  const ChildDataScreen({super.key});
+  final ParentModel parent;
+
+  const ChildDataScreen({super.key, required this.parent});
 
   @override
   State<ChildDataScreen> createState() => _ChildDataScreenState();
@@ -15,7 +19,10 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
   final nameController = TextEditingController();
   final ageController = TextEditingController();
 
-  String selectedGender = 'Boy'; // الافتراضي
+  String selectedGender = 'Boy';
+  bool isLoading = false;
+
+  final AuthService authService = AuthService();
 
   @override
   void dispose() {
@@ -24,23 +31,53 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
     super.dispose();
   }
 
-  void _onContinue() {
+  Future<void> _onContinue() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // هنا لاحقًا ممكن تحفظي الداتا في SharedPreferences / Backend لو حبيتي
+    setState(() {
+      isLoading = true;
+    });
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const LoginScreen(),
-      ),
+    ChildModel child = ChildModel(
+      name: nameController.text.trim(),
+      age: int.parse(ageController.text.trim()),
+      gender: selectedGender,
     );
+
+    RegisterRequestModel request = RegisterRequestModel(
+      parent: widget.parent,
+      child: child,
+    );
+
+    final success =
+    await authService.registerParentAndChild(request);
+
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = false;
+    });
+
+    if (success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration failed, please try again'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // خلفية جradient بدل اللون الثابت
+      // خلفية gradient (زي ما هي)
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -61,7 +98,6 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // عنوان فوق
                     const Text(
                       'Child Profile',
                       style: TextStyle(
@@ -103,7 +139,6 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                         key: _formKey,
                         child: Column(
                           children: [
-                            // Icon
                             const Icon(
                               Icons.child_care,
                               size: 60,
@@ -201,7 +236,7 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                             ),
                             const SizedBox(height: 18),
 
-                            // Child Gender
+                            // Gender
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
@@ -218,36 +253,36 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                               children: [
                                 ChoiceChip(
                                   label: const Text('Boy'),
-                                  selected: selectedGender == 'Boy',
+                                  selected: selectedGender == 'male',
                                   selectedColor:
                                   AppColors.primary.withOpacity(0.15),
                                   labelStyle: TextStyle(
-                                    color: selectedGender == 'Boy'
+                                    color: selectedGender == 'male'
                                         ? AppColors.primary
                                         : AppColors.textSecondary,
                                     fontWeight: FontWeight.w600,
                                   ),
-                                  onSelected: (bool selected) {
+                                  onSelected: (_) {
                                     setState(() {
-                                      selectedGender = 'Boy';
+                                      selectedGender = 'male';
                                     });
                                   },
                                 ),
                                 const SizedBox(width: 10),
                                 ChoiceChip(
                                   label: const Text('Girl'),
-                                  selected: selectedGender == 'Girl',
+                                  selected: selectedGender == 'female',
                                   selectedColor:
                                   AppColors.primary.withOpacity(0.15),
                                   labelStyle: TextStyle(
-                                    color: selectedGender == 'Girl'
+                                    color: selectedGender == 'female'
                                         ? AppColors.primary
                                         : AppColors.textSecondary,
                                     fontWeight: FontWeight.w600,
                                   ),
-                                  onSelected: (bool selected) {
+                                  onSelected: (_) {
                                     setState(() {
-                                      selectedGender = 'Girl';
+                                      selectedGender = 'female';
                                     });
                                   },
                                 ),
@@ -271,8 +306,12 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        onPressed: _onContinue,
-                        child: const Text(
+                        onPressed: isLoading ? null : _onContinue,
+                        child: isLoading
+                            ? const CircularProgressIndicator(
+                          color: Colors.white,
+                        )
+                            : const Text(
                           "Save & Continue",
                           style: TextStyle(
                             fontSize: 17,
@@ -283,10 +322,10 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                     ),
 
                     const SizedBox(height: 8),
-                    Text(
+                    const Text(
                       "You can edit child details anytime from Profile.",
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
                       ),

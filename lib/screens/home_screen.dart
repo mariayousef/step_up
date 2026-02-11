@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
-import 'health_overview_card.dart';
-import 'development_progress_card.dart';
-import 'bottom_nav_bar.dart';
-import 'LocationScreen.dart';
-import 'ProgressScreen.dart';
+import 'package:step_up/health_overview_card.dart';
+import 'package:step_up/development_progress_card.dart';
+import 'package:step_up/bottom_nav_bar.dart';
+import 'package:step_up/LocationScreen.dart';
+import 'package:step_up/ProgressScreen.dart';
 import 'ProfileScreen.dart';
-import 'NotificationScreen.dart';
-import 'safe_zone_model.dart';
-
+import 'package:step_up/NotificationScreen.dart';
+import 'package:step_up/safe_zone_model.dart';
+import 'package:step_up/app_colors.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-// ===================== Child Location Card =====================
 class ChildLocationCard extends StatelessWidget {
   final LatLng childLocation;
   final bool isInsideZone;
@@ -109,7 +107,6 @@ class ChildLocationCard extends StatelessWidget {
   }
 }
 
-// ===================== Main Home Screen with Bottom Nav =====================
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -141,7 +138,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final newLocation = LatLng(pos.latitude, pos.longitude);
       childLocationNotifier.value = newLocation;
 
-      // ✅ إعادة فحص Safe Zones
       _recheckSafeZones(newLocation);
 
     } catch (e) {
@@ -237,7 +233,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ===================== Home Content Screen =====================
 class HomeContentScreen extends StatelessWidget {
   final LatLng childLocation;
   final bool isChildInsideZone;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
-import 'package:step_up/services/auth_service.dart';
+import '../models/register_request_model.dart';
+
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -20,10 +21,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
-  final AuthService authService = AuthService();
 
-  void _onSignUp() async {
-    print("SIGNUP BUTTON CLICKED");
+  void _onSignUp() {
     if (!_formKey.currentState!.validate()) return;
 
     if (!_acceptTerms) {
@@ -36,34 +35,40 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    bool success = await authService.register(
-      _nameController.text.trim(),
-      _emailController.text.trim(),
-      _phoneController.text.trim(),
-      _passwordController.text.trim(),
+    final parent = ParentModel(
+      name: _nameController.text.trim(),
+      phoneNumber: _phoneController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
     );
 
-    if (success) {
-      Navigator.pushReplacementNamed(context, '/child_info');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Signup failed, please try again'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    Navigator.pushNamed(
+      context,
+      '/child_info',
+      arguments: parent,
+    );
   }
 
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
+  InputDecoration _inputDecoration({
+    required String label,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: const Color(0xFFFDFDFD),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.outline),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+      ),
+    );
   }
 
   @override
@@ -72,10 +77,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFFF4F9FF),
-              Color(0xFF9DF1D3),
-            ],
+            colors: [Color(0xFFF4F9FF), Color(0xFF9DF1D3)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -87,9 +89,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 430),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Avatar
                     CircleAvatar(
                       radius: 42,
                       backgroundColor: AppColors.primary.withOpacity(0.15),
@@ -121,9 +121,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Card الفورم
                     Container(
-                      width: double.infinity,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 22,
@@ -143,137 +141,56 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         key: _formKey,
                         child: Column(
                           children: [
-                            // Full Name
                             TextFormField(
                               controller: _nameController,
-                              decoration: InputDecoration(
-                                labelText: "Full Name",
-                                prefixIcon:
-                                const Icon(Icons.person_outline),
-                                labelStyle: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: AppColors.primary,
-                                    width: 2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: AppColors.outline,
-                                    width: 1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: const Color(0xFFFDFDFD),
+                              decoration: _inputDecoration(
+                                label: "Full Name",
+                                icon: Icons.person_outline,
                               ),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return "Please enter your full name";
-                                }
-                                return null;
-                              },
+                              validator: (v) =>
+                              v == null || v.isEmpty
+                                  ? "Please enter your full name"
+                                  : null,
                             ),
                             const SizedBox(height: 14),
 
-                            // Email
                             TextFormField(
                               controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              decoration: InputDecoration(
-                                labelText: "Email",
-                                prefixIcon:
-                                const Icon(Icons.email_outlined),
-                                labelStyle: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: AppColors.primary,
-                                    width: 2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: AppColors.outline,
-                                    width: 1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: const Color(0xFFFDFDFD),
+                              decoration: _inputDecoration(
+                                label: "Email",
+                                icon: Icons.email_outlined,
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Please enter your email";
-                                }
-                                if (!value.contains('@')) {
-                                  return "Please enter a valid email";
-                                }
-                                return null;
-                              },
+                              validator: (v) =>
+                              v == null || !v.contains('@')
+                                  ? "Please enter a valid email"
+                                  : null,
                             ),
                             const SizedBox(height: 14),
 
-                            // Phone Number
                             TextFormField(
                               controller: _phoneController,
-                              keyboardType: TextInputType.phone,
-                              decoration: InputDecoration(
-                                labelText: "Phone Number",
-                                prefixIcon: const Icon(
-                                  Icons.phone_android_outlined,
-                                ),
-                                labelStyle: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: AppColors.primary,
-                                    width: 2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: AppColors.outline,
-                                    width: 1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: const Color(0xFFFDFDFD),
+                              decoration: _inputDecoration(
+                                label: "Phone Number",
+                                icon: Icons.phone_android_outlined,
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Please enter your phone number";
-                                }
-                                if (value.length < 7) {
-                                  return "Please enter a valid phone number";
-                                }
-                                return null;
-                              },
+                              validator: (v) =>
+                              v == null || v.length < 7
+                                  ? "Please enter a valid phone number"
+                                  : null,
                             ),
                             const SizedBox(height: 14),
 
-                            // Password
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
-                              decoration: InputDecoration(
-                                labelText: "Password",
-                                prefixIcon:
-                                const Icon(Icons.lock_outline),
+                              decoration: _inputDecoration(
+                                label: "Password",
+                                icon: Icons.lock_outline,
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _obscurePassword
                                         ? Icons.visibility_off
                                         : Icons.visibility,
-                                    color: AppColors.textSecondary,
                                   ),
                                   onPressed: () {
                                     setState(() {
@@ -281,52 +198,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     });
                                   },
                                 ),
-                                labelStyle: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: AppColors.primary,
-                                    width: 2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: AppColors.outline,
-                                    width: 1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: const Color(0xFFFDFDFD),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Please enter a password";
-                                }
-                                if (value.length < 6) {
-                                  return "Password must be at least 6 characters";
-                                }
-                                return null;
-                              },
+                              validator: (v) =>
+                              v == null || v.length < 6
+                                  ? "Password must be at least 6 characters"
+                                  : null,
                             ),
                             const SizedBox(height: 14),
 
-                            // Confirm Password
                             TextFormField(
                               controller: _confirmPasswordController,
                               obscureText: _obscureConfirmPassword,
-                              decoration: InputDecoration(
-                                labelText: "Confirm Password",
-                                prefixIcon:
-                                const Icon(Icons.lock_outline),
+                              decoration: _inputDecoration(
+                                label: "Confirm Password",
+                                icon: Icons.lock_outline,
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _obscureConfirmPassword
                                         ? Icons.visibility_off
                                         : Icons.visibility,
-                                    color: AppColors.textSecondary,
                                   ),
                                   onPressed: () {
                                     setState(() {
@@ -335,78 +225,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     });
                                   },
                                 ),
-                                labelStyle: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: AppColors.primary,
-                                    width: 2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: const BorderSide(
-                                    color: AppColors.outline,
-                                    width: 1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                fillColor: const Color(0xFFFDFDFD),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return "Please confirm your password";
-                                }
-                                if (value != _passwordController.text) {
-                                  return "Passwords do not match";
-                                }
-                                return null;
-                              },
+                              validator: (v) =>
+                              v != _passwordController.text
+                                  ? "Passwords do not match"
+                                  : null,
                             ),
 
                             const SizedBox(height: 16),
 
-                            // Terms & privacy
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Checkbox(
                                   value: _acceptTerms,
                                   activeColor: AppColors.primary,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _acceptTerms = value ?? false;
-                                    });
-                                  },
+                                  onChanged: (v) =>
+                                      setState(() => _acceptTerms = v ?? false),
                                 ),
-                                Expanded(
-                                  child: Text.rich(
-                                    TextSpan(
-                                      text: 'I agree to the ',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                      children: [
-                                        TextSpan(
-                                          text: 'Terms of Use',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                        const TextSpan(text: ' & '),
-                                        TextSpan(
-                                          text: 'Privacy Policy',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                const Expanded(
+                                  child: Text(
+                                    "I agree to Terms & Privacy Policy",
+                                    style: TextStyle(fontSize: 12),
                                   ),
                                 ),
                               ],
@@ -414,14 +253,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                             const SizedBox(height: 10),
 
-                            // Sign Up Button
                             SizedBox(
                               width: double.infinity,
                               height: 52,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),
@@ -443,33 +280,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Already have account
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          "Already have an account? ",
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
-                          ),
-                        ),
+                        const Text("Already have an account? "),
                         GestureDetector(
-                          onTap: () {
-                            Navigator.pushNamed(context, '/login');
-                          },
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/login'),
                           child: const Text(
                             "Login",
                             style: TextStyle(
                               color: AppColors.primary,
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
                   ],
                 ),
               ),
