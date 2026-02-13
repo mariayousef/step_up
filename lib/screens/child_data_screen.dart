@@ -4,6 +4,7 @@ import 'package:step_up/app_colors.dart';
 import 'package:step_up/screens/LoginScreen.dart';
 import 'package:step_up/services/auth_service.dart';
 import '../models/register_request_model.dart';
+import '../services/user_local_service.dart';
 
 class ChildDataScreen extends StatefulWidget {
   final ParentModel parent;
@@ -49,8 +50,8 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
       child: child,
     );
 
-    final success =
-    await authService.registerParentAndChild(request);
+    final response = await authService.registerParentAndChild(request);
+
 
     if (!mounted) return;
 
@@ -58,13 +59,32 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
       isLoading = false;
     });
 
-    if (success) {
+    if (response != null) {
+
+      final data = response["data"];
+
+      final parent = data["parent"];
+      final child = data["child"];
+      final token = data["token"];
+
+      await UserLocalService.saveUserData({
+        "parentName": parent["name"],
+        "parentEmail": parent["email"],
+        "childName": child["name"],
+        "age": child["age"].toString(),
+        "gender": child["gender"],
+        "phoneNumber": parent["phone_number"],
+      });
+
+      await UserLocalService.saveToken(token);
+
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
             (route) => false,
       );
-    } else {
+    }
+    else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Registration failed, please try again'),
