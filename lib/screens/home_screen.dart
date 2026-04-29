@@ -12,6 +12,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'doctors_list_screen.dart';
+import 'package:animate_do/animate_do.dart';
 
 class ChildLocationCard extends StatelessWidget {
   final LatLng childLocation;
@@ -36,18 +38,12 @@ class ChildLocationCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: isInsideZone ? Colors.green.shade50 : Colors.red.shade50,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isInsideZone ? Colors.green : Colors.red,
+            color: isInsideZone ? Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.3),
             width: 1.5,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: [AppColors.softShadow],
         ),
         child: Row(
           children: [
@@ -208,6 +204,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               _selectedIndex = 2;
                             });
                           },
+                          onOpenDoctors: () {
+                            setState(() {
+                              _selectedIndex = 3;
+                            });
+                          },
                         );
                       },
                     );
@@ -217,6 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const LocationScreen(),
             const ProgressScreen(),
+            const DoctorsListScreen(),
             const ProfileScreen(),
           ],
         ),
@@ -239,6 +241,7 @@ class HomeContentScreen extends StatelessWidget {
   final String? currentZoneName;
   final VoidCallback onOpenLocation;
   final VoidCallback onOpenProgress;
+  final VoidCallback onOpenDoctors;
   final RefreshCallback onRefresh;
 
   const HomeContentScreen({
@@ -248,6 +251,7 @@ class HomeContentScreen extends StatelessWidget {
     required this.currentZoneName,
     required this.onOpenLocation,
     required this.onOpenProgress,
+    required this.onOpenDoctors,
     required this.onRefresh,
   });
 
@@ -269,89 +273,173 @@ class HomeContentScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ---------------- Header ----------------
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.15),
-                          shape: BoxShape.circle,
+            FadeInDown(
+              duration: const Duration(milliseconds: 500),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          padding: const EdgeInsets.all(10),
+                          child: const Icon(
+                            Icons.person_rounded,
+                            color: AppColors.primary,
+                            size: 34,
+                          ),
                         ),
-                        padding: const EdgeInsets.all(10),
-                        child: const Icon(
-                          Icons.person_rounded,
-                          color: AppColors.primary,
-                          size: 34,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              "Welcome back 👋",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textMain,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                "Welcome back 👋",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textMain,
+                                ),
                               ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              "Let's achieve your goals today!",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSecondary,
+                              SizedBox(height: 4),
+                              Text(
+                                "Let's achieve your goals today!",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => _openNotifications(context),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.all(10),
-                    child: const Icon(
-                      Icons.notifications_none_rounded,
-                      color: Colors.white,
-                      size: 28,
+                      ],
                     ),
                   ),
-                ),
-              ],
+                  GestureDetector(
+                    onTap: () => _openNotifications(context),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.all(10),
+                      child: const Icon(
+                        Icons.notifications_none_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
 
             // ----------- Location Widget -----------
-            ChildLocationCard(
-              childLocation: childLocation,
-              isInsideZone: isChildInsideZone,
-              currentZoneName: currentZoneName,
-              onOpenLocation: onOpenLocation,
+            FadeInUp(
+              delay: const Duration(milliseconds: 100),
+              child: ChildLocationCard(
+                childLocation: childLocation,
+                isInsideZone: isChildInsideZone,
+                currentZoneName: currentZoneName,
+                onOpenLocation: onOpenLocation,
+              ),
             ),
             const SizedBox(height: 30),
 
-            const HealthOverviewCard(),
+            FadeInUp(
+              delay: const Duration(milliseconds: 200),
+              child: const HealthOverviewCard(),
+            ),
             const SizedBox(height: 30),
 
             // ----------- Development Progress Widget -----------
-            GestureDetector(
-              onTap: onOpenProgress,
-              child: const DevelopmentProgressCard(),
+            FadeInUp(
+              delay: const Duration(milliseconds: 300),
+              child: GestureDetector(
+                onTap: onOpenProgress,
+                child: const DevelopmentProgressCard(),
+              ),
+            ),
+            const SizedBox(height: 30),
+
+            // ----------- Doctors Widget -----------
+            FadeInUp(
+              delay: const Duration(milliseconds: 400),
+              child: GestureDetector(
+                onTap: onOpenDoctors,
+                child: const DoctorsSectionCard(),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class DoctorsSectionCard extends StatelessWidget {
+  const DoctorsSectionCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [AppColors.softShadow],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.medical_services_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  "Consult a Doctor",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  "Book an appointment with specialized doctors",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.arrow_forward_ios_rounded,
+            color: Colors.white,
+            size: 20,
+          ),
+        ],
       ),
     );
   }

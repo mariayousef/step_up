@@ -8,6 +8,7 @@ import 'screens/home_screen.dart';
 import 'screens/child_data_screen.dart';
 import 'screens/ProfileScreen.dart';
 import 'models/register_request_model.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   runApp(const StepUpApp());
@@ -25,8 +26,43 @@ class StepUpApp extends StatelessWidget {
         scaffoldBackgroundColor: AppColors.background,
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
         useMaterial3: true,
+        textTheme: GoogleFonts.nunitoTextTheme(),
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: AppColors.textMain),
+          titleTextStyle: GoogleFonts.nunito(
+            color: AppColors.textMain,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          margin: EdgeInsets.zero,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            elevation: 0,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+            textStyle: GoogleFonts.nunito(
+              fontWeight: FontWeight.bold, 
+              fontSize: 16,
+            ),
+          ),
+        ),
       ),
-      home: const SplashScreen(),
+      home: const HomeScreen(),
 
       routes: {
         '/onboarding': (context) => const OnboardingScreen(),

@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class LocationScreen extends StatefulWidget {
   const LocationScreen({super.key});
@@ -29,8 +30,12 @@ class _LocationScreenState extends State<LocationScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeNotifications();
-    _determinePosition();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await _initializeNotifications();
+    await _determinePosition();
   }
 
   Future<void> _determinePosition() async {
@@ -137,8 +142,8 @@ class _LocationScreenState extends State<LocationScreen> {
       if (!_wasOutside) {
         _showSnackBar('ALERT: Child is outside safe zones!');
         _showNotification(
-          'Safe Zone Alert',
-          'Your child is outside the safe zone!',
+          'Safe Zone Alert 🚨',
+          'Attention: Your child has left the specified safe zone!',
         );
         _wasOutside = true;
       }
@@ -148,8 +153,14 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   Future<void> _initializeNotifications() async {
+    // Request permissions using permission_handler to ensure it's awaited properly
+    var status = await Permission.notification.status;
+    if (status.isDenied) {
+      await Permission.notification.request();
+    }
+
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('ic_notification_alert');
 
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
@@ -171,12 +182,22 @@ class _LocationScreenState extends State<LocationScreen> {
     const NotificationDetails platformChannelSpecifics =
         NotificationDetails(android: androidPlatformChannelSpecifics);
 
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      title,
-      body,
-      platformChannelSpecifics,
-    );
+    try {
+      final int notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await flutterLocalNotificationsPlugin.show(
+        notificationId,
+        title,
+        body,
+        platformChannelSpecifics,
+      );
+    } catch (e) {
+      debugPrint('Notification Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Notification failed: $e. Try full restart.')),
+        );
+      }
+    }
   }
 
   void _showSnackBar(String message) {
@@ -349,6 +370,7 @@ class _LocationScreenState extends State<LocationScreen> {
                         globalSafeZones[targetIndex] = SafeZone(name: name, latitude: dialogLocation.latitude, longitude: dialogLocation.longitude, radius: radius, active: targetZone?.active ?? true, sendNotifications: sendNotifications);
                       });
                     }
+                    if (_currentP != null) _checkGeofence(_currentP!);
                     _editingIndex = null; _editingZone = null; _tempName = null; _tempRadius = null; _tempNotify = null;
                     Navigator.pop(context);
                   },
@@ -431,7 +453,11 @@ class _LocationScreenState extends State<LocationScreen> {
                         child: Column(
                           children: [
                             Container(
-                              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))]),
+                              decoration: BoxDecoration(
+                                color: Colors.white, 
+                                borderRadius: BorderRadius.circular(24), 
+                                boxShadow: [AppColors.softShadow]
+                              ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -508,8 +534,13 @@ class _LocationScreenState extends State<LocationScreen> {
                 itemCount: globalSafeZones.length,
                 itemBuilder: (context, index) {
                   final zone = globalSafeZones[index];
-                  return Card(
+                  return Container(
                     margin: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [AppColors.softShadow],
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Column(
@@ -519,7 +550,10 @@ class _LocationScreenState extends State<LocationScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Row(children: [Icon(Icons.location_on, color: zone.active ? AppColors.primary : Colors.grey), const SizedBox(width: 8), Text(zone.name, style: const TextStyle(fontWeight: FontWeight.bold))]),
-                              Switch(value: zone.active, onChanged: (value) => setState(() => zone.active = value), activeColor: AppColors.primary),
+                              Switch(value: zone.active, onChanged: (value) { 
+                                setState(() => zone.active = value);
+                                if (_currentP != null) _checkGeofence(_currentP!);
+                              }, activeColor: AppColors.primary),
                             ],
                           ),
                           const SizedBox(height: 4),
@@ -529,7 +563,10 @@ class _LocationScreenState extends State<LocationScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Row(children: [const Text('Send notifications'), Switch(value: zone.sendNotifications, onChanged: (value) => setState(() => zone.sendNotifications = value), activeColor: AppColors.primary)]),
-                              Row(children: [IconButton(onPressed: () => _showZoneDialog(zone: zone, index: index), icon: const Icon(Icons.edit)), IconButton(onPressed: () => setState(() => globalSafeZones.removeAt(index)), icon: const Icon(Icons.delete))]),
+                              Row(children: [IconButton(onPressed: () => _showZoneDialog(zone: zone, index: index), icon: const Icon(Icons.edit)), IconButton(onPressed: () {
+                                setState(() => globalSafeZones.removeAt(index));
+                                if (_currentP != null) _checkGeofence(_currentP!);
+                              }, icon: const Icon(Icons.delete, color: Colors.red))]),
                             ],
                           ),
                         ],

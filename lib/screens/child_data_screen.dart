@@ -4,6 +4,7 @@ import 'package:step_up/app_colors.dart';
 import 'package:step_up/screens/LoginScreen.dart';
 import 'package:step_up/services/auth_service.dart';
 import '../models/register_request_model.dart';
+import 'package:animate_do/animate_do.dart';
 
 class ChildDataScreen extends StatefulWidget {
   final ParentModel parent;
@@ -98,27 +99,36 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Child Profile',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textMain,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'We’ll use this to personalize\nhealth & activity recommendations.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
+                    FadeInDown(
+                      duration: const Duration(milliseconds: 500),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Child Profile',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textMain,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'We’ll use this to personalize\nhealth & activity recommendations.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
 
                     // Card الأبيض
-                    Container(
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 200),
+                      child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
@@ -292,12 +302,14 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                         ),
                       ),
                     ),
+                    ),
 
                     const SizedBox(height: 24),
 
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 400),
+                      child: SizedBox(
+                        width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
@@ -320,14 +332,18 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                         ),
                       ),
                     ),
+                    ),
 
                     const SizedBox(height: 8),
-                    const Text(
-                      "You can edit child details anytime from Profile.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 500),
+                      child: const Text(
+                        "You can edit child details anytime from Profile.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],

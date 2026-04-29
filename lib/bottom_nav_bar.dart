@@ -37,6 +37,10 @@ class CustomBottomNavBar extends StatelessWidget {
           label: 'Progress',
         ),
         BottomNavigationBarItem(
+          icon: Icon(Icons.medical_services_rounded),
+          label: 'Doctors',
+        ),
+        BottomNavigationBarItem(
           icon: Icon(Icons.person_rounded),
           label: 'Profile',
         ),
