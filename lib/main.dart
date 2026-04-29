@@ -10,7 +10,14 @@ import 'screens/ProfileScreen.dart';
 import 'models/register_request_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-void main() {
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const StepUpApp());
 }
 
@@ -62,7 +69,7 @@ class StepUpApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      home: const SplashScreen(),
 
       routes: {
         '/onboarding': (context) => const OnboardingScreen(),
