@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:step_up/app_colors.dart';
-import 'package:step_up/screens/parent/splash_screen.dart';
+import 'package:step_up/screens/home_screen.dart';
 import 'package:step_up/screens/parent/onboarding_screen.dart';
 import 'package:step_up/screens/parent/parent_login_screen.dart';
 import 'package:step_up/screens/parent/parent_signup_screen.dart';
@@ -19,9 +19,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const StepUpApp());
 }
 
@@ -67,24 +65,24 @@ class StepUpApp extends StatelessWidget {
             ),
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
             textStyle: GoogleFonts.nunito(
-              fontWeight: FontWeight.bold, 
+              fontWeight: FontWeight.bold,
               fontSize: 16,
             ),
           ),
         ),
       ),
-      home: const SplashScreen(),
+      home: const HomeScreen(),
 
       routes: {
         '/role_selection': (context) => const RoleSelectionScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
-        
+
         // Parent Routes
         '/parent_login': (context) => const ParentLoginScreen(),
         '/parent_signup': (context) => const ParentSignupScreen(),
         '/parent_home': (context) => const ParentHomeScreen(),
         '/parent_profile': (context) => const ParentProfileScreen(),
-        
+
         // Doctor Routes
         '/doctor_login': (context) => const DoctorLoginScreen(),
         '/doctor_signup': (context) => const DoctorSignupScreen(),

@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 import 'app_colors.dart';
 
 class BodyTrainingScreen extends StatefulWidget {
@@ -22,9 +23,9 @@ class _BodyTrainingScreenState extends State<BodyTrainingScreen> {
   }
 
   Future<void> _initCamera() async {
-    // نطلب صلاحية الكاميرا
     final status = await Permission.camera.request();
     if (!status.isGranted) {
+      if (!mounted) return;
       setState(() => _isCameraAvailable = false);
       return;
     }
@@ -32,24 +33,25 @@ class _BodyTrainingScreenState extends State<BodyTrainingScreen> {
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
+        if (!mounted) return;
         setState(() => _isCameraAvailable = false);
         return;
       }
 
-      _cameraController = CameraController(
+      final controller = CameraController(
         cameras.first,
         ResolutionPreset.medium,
       );
 
-      _initializeControllerFuture = _cameraController!.initialize();
+      _cameraController = controller;
+      _initializeControllerFuture = controller.initialize();
       await _initializeControllerFuture;
 
       if (!mounted) return;
-      setState(() {
-        _isCameraAvailable = true;
-      });
-    } catch (e) {
-      debugPrint('Camera error: $e');
+      setState(() => _isCameraAvailable = true);
+    } catch (error) {
+      debugPrint('Camera error: $error');
+      if (!mounted) return;
       setState(() => _isCameraAvailable = false);
     }
   }
@@ -61,7 +63,6 @@ class _BodyTrainingScreenState extends State<BodyTrainingScreen> {
   }
 
   void _startExercise() {
-    // هنا تضيفي لوجيك التمرين بعدين
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Exercise started (camera is on)!')),
     );
@@ -71,47 +72,11 @@ class _BodyTrainingScreenState extends State<BodyTrainingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFE4FFF7),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Body Training',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Row(
-              children: [
-                Icon(Icons.star_rounded, color: Colors.amber),
-                SizedBox(width: 4),
-                Text(
-                  '0',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      appBar: _buildAppBar(),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFFE0FFFB),
-              Color(0xFFB9F3FF),
-            ],
+            colors: [Color(0xFFE0FFFB), Color(0xFFB9F3FF)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -120,107 +85,152 @@ class _BodyTrainingScreenState extends State<BodyTrainingScreen> {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              // الكارت الأبيض اللي فوق
-              Container(
-                width: double.infinity,
-                padding:
-                const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: const [
-                    Text(
-                      '🙌',
-                      style: TextStyle(fontSize: 46),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'Arms Up',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textMain,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Raise your arms high!',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildExerciseCard(),
               const SizedBox(height: 24),
-
-              // هنا بقى الكاميرا بدل البلاسيهولدر
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: _isCameraAvailable && _initializeControllerFuture != null
-                      ? FutureBuilder(
-                    future: _initializeControllerFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState ==
-                          ConnectionState.done) {
-                        return CameraPreview(_cameraController!);
-                      } else {
-                        return const Center(
-                            child: CircularProgressIndicator());
-                      }
-                    },
-                  )
-                      : Container(
-                    color: const Color(0xFF111827),
-                    child: const Center(
-                      child: Text(
-                        'Camera not available',
-                        style: TextStyle(
-                            color: Colors.white70, fontSize: 14),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
+              Expanded(child: _buildCameraPreview()),
               const SizedBox(height: 24),
+              _buildStartButton(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    elevation: 2,
-                  ),
-                  onPressed: _startExercise,
-                  icon:
-                  const Icon(Icons.play_arrow_rounded, color: Colors.white),
-                  label: const Text(
-                    'Start Exercise',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: Colors.white,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+        onPressed: () => Navigator.pop(context),
+      ),
+      title: const Text(
+        'Body Training',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+      ),
+      centerTitle: true,
+      actions: const [
+        Padding(
+          padding: EdgeInsets.only(right: 16),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.star_rounded, color: Colors.amber),
+              SizedBox(width: 4),
+              Text(
+                '0',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExerciseCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const Column(
+        children: [
+          Icon(
+            Icons.accessibility_new_rounded,
+            color: AppColors.primary,
+            size: 46,
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Arms Up',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMain,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Raise your arms high!',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCameraPreview() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: _isCameraAvailable && _initializeControllerFuture != null
+          ? FutureBuilder<void>(
+              future: _initializeControllerFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.done &&
+                    _cameraController != null) {
+                  return CameraPreview(_cameraController!);
+                }
+
+                return const Center(child: CircularProgressIndicator());
+              },
+            )
+          : Container(
+              color: const Color(0xFF111827),
+              alignment: Alignment.center,
+              child: const Text(
+                'Camera not available',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildStartButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 2,
+        ),
+        onPressed: _startExercise,
+        icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+        label: const Text(
+          'Start Exercise',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'app_colors.dart';
 import 'mini_stat.dart';
 
@@ -15,17 +16,17 @@ class HealthOverviewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
             spreadRadius: 2,
             offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Column(
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Health Overview",
             style: TextStyle(
               fontSize: 18,
@@ -33,34 +34,32 @@ class HealthOverviewCard extends StatelessWidget {
               color: AppColors.textMain,
             ),
           ),
-
-          const SizedBox(height: 20),
-
+          SizedBox(height: 20),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              // ✔️ 1. Heart (أول عنصر)
-              MiniStat(
-                icon: Icons.favorite_rounded,
-                label: "Heart Rate",
-                value: "89 bpm",
-                color: Colors.redAccent,
+            children: [
+              Expanded(
+                child: MiniStat(
+                  icon: Icons.favorite_rounded,
+                  label: "Heart Rate",
+                  value: "89 bpm",
+                  color: Colors.redAccent,
+                ),
               ),
-
-              // ✔️ 2. Mood (تاني عنصر)
-              MiniStat(
-                icon: Icons.emoji_emotions_rounded,
-                label: "Mood",
-                value: "Happy",
-                color: Colors.amber,
+              Expanded(
+                child: MiniStat(
+                  icon: Icons.emoji_emotions_rounded,
+                  label: "Mood",
+                  value: "Happy",
+                  color: Colors.amber,
+                ),
               ),
-
-              // ✔️ 3. Oxygen (تالت عنصر)
-              MiniStat(
-                icon: Icons.water_drop_rounded,
-                label: "Oxygen",
-                value: "97%",
-                color: Colors.blueAccent,
+              Expanded(
+                child: MiniStat(
+                  icon: Icons.water_drop_rounded,
+                  label: "Oxygen",
+                  value: "97%",
+                  color: Colors.blueAccent,
+                ),
               ),
             ],
           ),
