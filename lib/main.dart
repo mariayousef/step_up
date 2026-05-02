@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
-import 'screens/splash_screen.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/LoginScreen.dart';
-import 'screens/signup_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/child_data_screen.dart';
-import 'screens/ProfileScreen.dart';
-import 'models/register_request_model.dart';
+import 'package:step_up/app_colors.dart';
+import 'package:step_up/screens/parent/splash_screen.dart';
+import 'package:step_up/screens/parent/onboarding_screen.dart';
+import 'package:step_up/screens/parent/parent_login_screen.dart';
+import 'package:step_up/screens/parent/parent_signup_screen.dart';
+import 'package:step_up/screens/parent/parent_home_screen.dart';
+import 'package:step_up/screens/parent/child_data_screen.dart';
+import 'package:step_up/screens/parent/parent_profile_screen.dart';
+import 'package:step_up/screens/role_selection_screen.dart';
+import 'package:step_up/screens/doctor/doctor_login_screen.dart';
+import 'package:step_up/screens/doctor/doctor_signup_screen.dart';
+import 'package:step_up/screens/doctor/doctor_home_screen.dart';
+import 'package:step_up/models/register_request_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -72,11 +76,19 @@ class StepUpApp extends StatelessWidget {
       home: const SplashScreen(),
 
       routes: {
+        '/role_selection': (context) => const RoleSelectionScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/signup': (context) => const SignUpScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/profile': (context) => const ProfileScreen(),
+        
+        // Parent Routes
+        '/parent_login': (context) => const ParentLoginScreen(),
+        '/parent_signup': (context) => const ParentSignupScreen(),
+        '/parent_home': (context) => const ParentHomeScreen(),
+        '/parent_profile': (context) => const ParentProfileScreen(),
+        
+        // Doctor Routes
+        '/doctor_login': (context) => const DoctorLoginScreen(),
+        '/doctor_signup': (context) => const DoctorSignupScreen(),
+        '/doctor_home': (context) => const DoctorHomeScreen(),
       },
 
       onGenerateRoute: (settings) {
