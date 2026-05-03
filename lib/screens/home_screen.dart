@@ -10,7 +10,7 @@ import 'package:step_up/pin_storage.dart';
 import 'package:step_up/safe_zone_model.dart';
 import 'package:step_up/app_colors.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:step_up/services/sensor_service.dart';
 import 'doctors_list_screen.dart';
 import 'package:animate_do/animate_do.dart';
 
@@ -129,52 +129,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Tracking is handled in LocationScreen
+    SensorReadingsController.instance.start();
   }
 
   @override
   void dispose() {
+    SensorReadingsController.instance.stop();
     super.dispose();
   }
 
   Future<void> _onRefresh() async {
-    try {
-      Position pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 10),
-      );
-
-      final newLocation = LatLng(pos.latitude, pos.longitude);
-      childLocationNotifier.value = newLocation;
-
-      _recheckSafeZones(newLocation);
-    } catch (e) {
-      debugPrint('Refresh Error: $e');
-    }
-  }
-
-  void _recheckSafeZones(LatLng location) {
-    bool isSafe = false;
-    String? zoneName;
-
-    for (var zone in globalSafeZones) {
-      if (!zone.active) continue;
-
-      final distance = const Distance().as(
-        LengthUnit.Meter,
-        location,
-        LatLng(zone.latitude, zone.longitude),
-      );
-
-      if (distance <= zone.radius) {
-        isSafe = true;
-        zoneName = zone.name;
-        break;
-      }
-    }
-
-    isChildSafeNotifier.value = isSafe;
-    currentZoneNameNotifier.value = zoneName;
+    await SensorReadingsController.instance.fetchLatest();
   }
 
   @override

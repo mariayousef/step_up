@@ -7,6 +7,7 @@ import 'package:step_up/screens/parent/parent_signup_screen.dart';
 import 'package:step_up/screens/parent/parent_home_screen.dart';
 import 'package:step_up/screens/parent/child_data_screen.dart';
 import 'package:step_up/screens/parent/parent_profile_screen.dart';
+import 'package:step_up/screens/parent/splash_screen.dart';
 import 'package:step_up/screens/role_selection_screen.dart';
 import 'package:step_up/screens/doctor/doctor_login_screen.dart';
 import 'package:step_up/screens/doctor/doctor_signup_screen.dart';
@@ -71,7 +72,7 @@ class StepUpApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      home: const SplashScreen(),
 
       routes: {
         '/role_selection': (context) => const RoleSelectionScreen(),
@@ -80,6 +81,7 @@ class StepUpApp extends StatelessWidget {
         // Parent Routes
         '/parent_login': (context) => const ParentLoginScreen(),
         '/parent_signup': (context) => const ParentSignupScreen(),
+        '/signup': (context) => const ParentSignupScreen(), // Alias to prevent errors
         '/parent_home': (context) => const ParentHomeScreen(),
         '/parent_profile': (context) => const ParentProfileScreen(),
 

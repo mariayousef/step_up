@@ -3,8 +3,6 @@ import 'app_colors.dart';
 import 'safe_zone_model.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
-import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -19,8 +17,7 @@ class LocationScreen extends StatefulWidget {
 }
 
 class _LocationScreenState extends State<LocationScreen> {
-  LatLng? _currentP;
-  StreamSubscription<Position>? positionStream;
+  LatLng? _currentP = childLocationNotifier.value;
   final MapController _mapController = MapController();
   bool _isFirstLocationLoad = true;
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -29,90 +26,27 @@ class _LocationScreenState extends State<LocationScreen> {
   @override
   void initState() {
     super.initState();
+    childLocationNotifier.addListener(_syncChildLocationFromSensor);
     _initializeApp();
   }
 
   Future<void> _initializeApp() async {
     await _initializeNotifications();
-    await _determinePosition();
+    _syncChildLocationFromSensor();
   }
 
-  Future<void> _determinePosition() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+  void _syncChildLocationFromSensor() {
+    if (!mounted) return;
 
-    try {
-      serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        _showSnackBar('Location services are disabled. Please enable GPS.');
-        return;
-      }
+    final sensorLocation = childLocationNotifier.value;
+    setState(() => _currentP = sensorLocation);
 
-      permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showSnackBar('Location permissions are denied');
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        _showSnackBar(
-          'Location permissions are permanently denied, we cannot request permissions.',
-        );
-        return;
-      }
-
-      Position? lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
-        setState(() {
-          _currentP = LatLng(lastKnown.latitude, lastKnown.longitude);
-        });
-        if (_isFirstLocationLoad) {
-          _mapController.move(_currentP!, 15);
-          _isFirstLocationLoad = false;
-        }
-      }
-
-      // Start stream EARLIER for faster updates
-      positionStream =
-          Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              distanceFilter: 10, // Get updates even for small movements
-            ),
-          ).listen((Position position) {
-            if (mounted) {
-              setState(() {
-                _currentP = LatLng(position.latitude, position.longitude);
-                childLocationNotifier.value = _currentP!;
-
-                if (_isFirstLocationLoad) {
-                  _mapController.move(_currentP!, 15);
-                  _isFirstLocationLoad = false;
-                }
-              });
-              _checkGeofence(_currentP!);
-            }
-          });
-
-      // Still try to get a fresh current position once
-      Position freshPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
-      );
-
-      if (mounted) {
-        setState(() {
-          _currentP = LatLng(freshPosition.latitude, freshPosition.longitude);
-        });
-        _checkGeofence(_currentP!);
-      }
-    } catch (e) {
-      debugPrint('Error getting location: $e');
-      _showSnackBar('Error getting location: $e');
+    if (_isFirstLocationLoad) {
+      _mapController.move(sensorLocation, 15);
+      _isFirstLocationLoad = false;
     }
+
+    _checkGeofence(sensorLocation);
   }
 
   void _checkGeofence(LatLng currentPos) {
@@ -274,7 +208,7 @@ class _LocationScreenState extends State<LocationScreen> {
 
   @override
   void dispose() {
-    positionStream?.cancel();
+    childLocationNotifier.removeListener(_syncChildLocationFromSensor);
     _mapController.dispose();
     _searchController.dispose();
     super.dispose();

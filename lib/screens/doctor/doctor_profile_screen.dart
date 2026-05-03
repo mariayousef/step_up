@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:step_up/screens/doctor/doctor_login_screen.dart';
 import 'package:step_up/screens/doctor/doctor_settings_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:step_up/services/api_service.dart';
 
 class DoctorProfileScreen extends StatefulWidget {
   const DoctorProfileScreen({super.key});
@@ -12,10 +12,10 @@ class DoctorProfileScreen extends StatefulWidget {
 
 class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   // بيانات أساسية
-  String _doctorName = 'Dr. Ahmed';
-  String _specialty = 'Pediatrician';
-  String _clinicInfo = 'Main Hospital, Cairo';
-  String _email = 'dr.ahmed@example.com';
+  String _doctorName = 'Loading...';
+  String _specialty = '...';
+  String _clinicInfo = '...';
+  String _email = '...';
 
   @override
   void initState() {
@@ -25,22 +25,30 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
 
   // تحميل البيانات لو كانت محفوظة مسبقاً (Local Storage)
   Future<void> _loadProfileData() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _doctorName = prefs.getString('doc_name') ?? 'Dr. Ahmed';
-      _specialty = prefs.getString('doc_spec') ?? 'Pediatrician';
-      _clinicInfo = prefs.getString('doc_clinic') ?? 'Main Hospital, Cairo';
-      _email = prefs.getString('doc_email') ?? 'dr.ahmed@example.com';
-    });
+    final userData = await ApiService.getUser();
+    print("DOCTOR_PROFILE: Loaded Data: $userData");
+
+    if (userData != null) {
+      setState(() {
+        _doctorName = userData['name'] ?? userData['full_name'] ?? 'Doctor Name';
+        _specialty = userData['specialization'] ?? userData['spec'] ?? userData['specialty'] ?? 'Specialist';
+        _email = userData['email'] ?? 'No email';
+        
+        final clinics = userData['clinics'];
+        if (clinics is List && clinics.isNotEmpty) {
+          _clinicInfo = clinics.join(', ');
+        } else if (clinics != null) {
+          _clinicInfo = clinics.toString();
+        } else {
+          _clinicInfo = 'No clinics registered';
+        }
+      });
+    }
   }
 
-  // حفظ البيانات بعد التعديل
+  // حفظ البيانات بعد التعديل (Dummy for now or can call API)
   Future<void> _saveProfileData(String name, String spec, String clinic, String email) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('doc_name', name);
-    await prefs.setString('doc_spec', spec);
-    await prefs.setString('doc_clinic', clinic);
-    await prefs.setString('doc_email', email);
+    // This can be updated to call a patch/put API if available
     _loadProfileData(); // تحديث الشاشة
   }
 
@@ -126,10 +134,12 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
+            onPressed: () async {
+              await ApiService.clearAll();
+              if (!context.mounted) return;
+              Navigator.pushNamedAndRemoveUntil(
                 context, 
-                MaterialPageRoute(builder: (context) => const DoctorLoginScreen()), 
+                '/role_selection', 
                 (route) => false,
               );
             },

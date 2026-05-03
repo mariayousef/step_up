@@ -1,57 +1,67 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'api_service.dart';
 import '../models/register_request_model.dart';
 
 class AuthService {
-  static const String baseUrl =
-      "https://claribel-inescapable-ingrid.ngrok-free.dev/api/auth";
-
+  // Parent Registration
   Future<bool> registerParentAndChild(RegisterRequestModel data) async {
-    final url = Uri.parse("$baseUrl/register");
-
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode(data.toJson()),
-      );
+      final response = await ApiService.postJson('/api/auth/register', data.toJson());
+      
+      // Save input data manually to ensure Profile is populated immediately
+      final inputData = {
+        'name': data.parent.name,
+        'email': data.parent.email,
+        'phone_number': data.parent.phoneNumber,
+        'child_name': data.child.name,
+        'child_age': data.child.age,
+        'child_gender': data.child.gender,
+      };
+      await ApiService.saveUser(inputData);
 
-      print("STATUS CODE: ${response.statusCode}");
-      print("RESPONSE BODY: ${response.body}");
-
-      return response.statusCode == 200 || response.statusCode == 201;
+      await _saveTokenIfPresent(response);
+      return true;
     } catch (e) {
-      print("REGISTER ERROR: $e");
+      print("AuthService Error: $e");
       return false;
     }
   }
+
+  // Parent Login
   Future<bool> login(String email, String password) async {
-    final url = Uri.parse(
-      "https://claribel-inescapable-ingrid.ngrok-free.dev/api/auth/login",
-    );
-
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-          "email": email,
-          "password": password,
-        }),
-      );
-
-      print("LOGIN STATUS: ${response.statusCode}");
-      print("LOGIN BODY: ${response.body}");
-
-      return response.statusCode == 200;
+      final response = await ApiService.postJson('/api/auth/login', {
+        'email': email,
+        'password': password,
+      });
+      await _saveTokenIfPresent(response);
+      return true;
     } catch (e) {
-      print("LOGIN ERROR: $e");
+      print("AuthService Login Error: $e");
       return false;
     }
   }
 
+  Future<void> _saveTokenIfPresent(dynamic response) async {
+    final token = ApiService.extractToken(response);
+    if (token != null) {
+      await ApiService.saveToken(token);
+    }
+    
+    // Deeper search for user data
+    if (response is Map) {
+      final userData = response['user'] ?? response['data'] ?? response['parent'] ?? response['doctor'];
+      if (userData is Map) {
+        print("AUTH_SERVICE: Saving user data from response: $userData");
+        await ApiService.saveUser(Map<String, dynamic>.from(userData));
+        
+        // Save user type if present
+        final type = userData['user_type'] ?? 'parent';
+        await ApiService.saveUserType(type);
+      }
+    }
+  }
+
+  Future<void> logout() async {
+    await ApiService.clearAll();
+  }
 }

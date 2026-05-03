@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:step_up/screens/doctor/doctor_signup_screen.dart';
 import 'package:step_up/screens/doctor/doctor_home_screen.dart';
+import 'package:step_up/services/api_service.dart';
+import 'package:step_up/services/doctor_auth_service.dart';
 
 class DoctorLoginScreen extends StatefulWidget {
   const DoctorLoginScreen({super.key});
@@ -13,6 +15,50 @@ class DoctorLoginScreen extends StatefulWidget {
 class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      _showMessage('Please enter email and password');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await DoctorAuthService.loginDoctor(email: email, password: password);
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
+      );
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Login failed. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,10 +99,7 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
                 child: const Text(
                   'Log in to track your patients and connect with parents',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black54,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.black54),
                 ),
               ),
               const SizedBox(height: 50),
@@ -86,12 +129,7 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
                 delay: const Duration(milliseconds: 1000),
                 duration: const Duration(milliseconds: 800),
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
-                    );
-                  },
+                  onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00796B),
                     foregroundColor: Colors.white,
@@ -101,10 +139,22 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
                     ),
                     elevation: 2,
                   ),
-                  child: const Text(
-                    'Log In',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Log In',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -123,7 +173,9 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const DoctorSignupScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => const DoctorSignupScreen(),
+                          ),
                         );
                       },
                       child: const Text(
@@ -157,7 +209,7 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -171,7 +223,10 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
           hintText: hint,
           prefixIcon: Icon(icon, color: Colors.grey),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
         ),
       ),
     );

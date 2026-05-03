@@ -3,6 +3,8 @@ import 'package:step_up/SettingsScreen.dart';
 import 'package:step_up/pin_storage.dart';
 import 'package:step_up/child_dashboard_screen.dart';
 import 'package:step_up/app_colors.dart';
+import 'package:step_up/services/api_service.dart';
+import 'package:step_up/services/auth_service.dart';
 
 class ParentProfileScreen extends StatefulWidget {
   const ParentProfileScreen({super.key});
@@ -12,14 +14,13 @@ class ParentProfileScreen extends StatefulWidget {
 }
 
 class _ParentProfileScreenState extends State<ParentProfileScreen> {
-  Map<String, dynamic> parentInfo = {'name': 'Mohamed Ali'};
+  Map<String, dynamic> parentInfo = {'name': 'Loading...'};
   Map<String, dynamic> childInfo = {
-    'childName': 'Ahmed Mohamed',
-    'age': '5 years',
-    'gender': 'Male',
-    'phoneNumber': '+1234567890',
-    'caseInformation':
-    'Autism Spectrum Disorder. The child shows strengths in visual learning.',
+    'childName': 'Loading...',
+    'age': '...',
+    'gender': '...',
+    'phoneNumber': '...',
+    'caseInformation': 'No information provided.',
   };
 
   bool _isEditMode = false;
@@ -28,14 +29,45 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
   @override
   void initState() {
     super.initState();
-    parentInfo.forEach(
-          (key, value) =>
-      _controllers[key] = TextEditingController(text: value.toString()),
-    );
-    childInfo.forEach(
-          (key, value) =>
-      _controllers[key] = TextEditingController(text: value.toString()),
-    );
+    // Pre-initialize all required controllers
+    _controllers['name'] = TextEditingController();
+    _controllers['phone'] = TextEditingController();
+    _controllers['childName'] = TextEditingController();
+    _controllers['age'] = TextEditingController();
+    _controllers['gender'] = TextEditingController();
+    _controllers['phoneNumber'] = TextEditingController();
+    _controllers['caseInformation'] = TextEditingController();
+    
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final userData = await ApiService.getUser();
+    print("FINAL_DEBUG_PROFILE: $userData");
+    
+    if (userData != null) {
+      setState(() {
+        // Parent Info
+        parentInfo['name'] = userData['name'] ?? userData['full_name'] ?? userData['parent_name'] ?? 'User';
+        parentInfo['phone'] = userData['phone_number'] ?? userData['phone'] ?? 'Parent Account';
+        
+        // Child Info
+        childInfo['childName'] = userData['child_name'] ?? userData['name'] ?? 'Not set';
+        childInfo['age'] = (userData['child_age'] ?? userData['age'])?.toString() ?? 'Not set';
+        childInfo['gender'] = userData['child_gender'] ?? userData['gender'] ?? 'Not set';
+        childInfo['phoneNumber'] = userData['phone_number'] ?? userData['phone'] ?? 'Not set';
+        childInfo['caseInformation'] = userData['case_information'] ?? 'No information provided.';
+        
+        // Update all controllers
+        _controllers['name']?.text = parentInfo['name'];
+        _controllers['phone']?.text = parentInfo['phone'];
+        _controllers['childName']?.text = childInfo['childName'];
+        _controllers['age']?.text = childInfo['age'];
+        _controllers['gender']?.text = childInfo['gender'];
+        _controllers['phoneNumber']?.text = childInfo['phoneNumber'];
+        _controllers['caseInformation']?.text = childInfo['caseInformation'];
+      });
+    }
   }
 
   @override
@@ -191,8 +223,64 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
             _buildProfileHeader(),
             const SizedBox(height: 24),
             _buildChildInfoSection(),
+            const SizedBox(height: 32),
+            
+            // Logout Button
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: OutlinedButton.icon(
+                onPressed: _showLogoutDialog,
+                icon: const Icon(Icons.logout, color: Colors.red),
+                label: const Text(
+                  'Log Out',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log Out'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final authService = AuthService();
+              await authService.logout();
+              if (!mounted) return;
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/role_selection',
+                (route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Log Out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

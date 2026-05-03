@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:step_up/screens/doctor/doctor_home_screen.dart';
+import 'package:step_up/services/api_service.dart';
+import 'package:step_up/services/doctor_auth_service.dart';
 
 class DoctorSignupScreen extends StatefulWidget {
   const DoctorSignupScreen({super.key});
@@ -14,8 +16,14 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  
-  final List<TextEditingController> _clinicControllers = [TextEditingController()];
+  final TextEditingController _specializationController =
+      TextEditingController();
+
+  final List<TextEditingController> _clinicControllers = [
+    TextEditingController(),
+  ];
+
+  bool _isLoading = false;
 
   void _addClinicField() {
     setState(() {
@@ -38,10 +46,66 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _phoneController.dispose();
+    _specializationController.dispose();
     for (var controller in _clinicControllers) {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _register() async {
+    final clinics = _clinicControllers
+        .map((controller) => controller.text.trim())
+        .where((clinic) => clinic.isNotEmpty)
+        .toList();
+
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty ||
+        _phoneController.text.trim().isEmpty ||
+        _specializationController.text.trim().isEmpty ||
+        clinics.isEmpty) {
+      _showMessage('Please complete all doctor details');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await DoctorAuthService.registerDoctor(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        specialization: _specializationController.text.trim(),
+        clinics: clinics,
+      );
+
+      if (!mounted) return;
+      
+      // Show success message and go back to Login
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration successful! Please login with your credentials.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      Navigator.pop(context); 
+    } on ApiException catch (error) {
+      _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Registration failed. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -77,14 +141,11 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
                 duration: const Duration(milliseconds: 800),
                 child: const Text(
                   'Please fill out the following details to join the platform',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black54,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.black54),
                 ),
               ),
               const SizedBox(height: 30),
-              
+
               FadeInLeft(
                 delay: const Duration(milliseconds: 400),
                 child: _buildTextField(
@@ -123,30 +184,48 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
                   keyboardType: TextInputType.phone,
                 ),
               ),
+              const SizedBox(height: 16),
+              FadeInLeft(
+                delay: const Duration(milliseconds: 750),
+                child: _buildTextField(
+                  controller: _specializationController,
+                  hint: 'Specialization',
+                  icon: Icons.medical_information_outlined,
+                ),
+              ),
               const SizedBox(height: 24),
-              
+
               FadeInLeft(
                 delay: const Duration(milliseconds: 800),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 8,
                   children: [
                     const Text(
                       'Workplaces',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                     TextButton.icon(
                       onPressed: _addClinicField,
                       icon: const Icon(Icons.add, color: Color(0xFF00796B)),
                       label: const Text(
                         'Add Clinic/Hospital',
-                        style: TextStyle(color: Color(0xFF00796B), fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Color(0xFF00796B),
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 10),
-              
+
               ...List.generate(_clinicControllers.length, (index) {
                 return FadeInLeft(
                   delay: Duration(milliseconds: 800 + (index * 100)),
@@ -163,7 +242,10 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
                         ),
                         if (_clinicControllers.length > 1)
                           IconButton(
-                            icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                            icon: const Icon(
+                              Icons.remove_circle_outline,
+                              color: Colors.redAccent,
+                            ),
                             onPressed: () => _removeClinicField(index),
                           ),
                       ],
@@ -171,17 +253,12 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
                   ),
                 );
               }),
-              
+
               const SizedBox(height: 40),
               FadeInUp(
                 delay: const Duration(milliseconds: 1000),
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
-                    );
-                  },
+                  onPressed: _isLoading ? null : _register,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00796B),
                     foregroundColor: Colors.white,
@@ -191,10 +268,22 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
                     ),
                     elevation: 2,
                   ),
-                  child: const Text(
-                    'Create Account & Log In',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Create Account & Log In',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -217,7 +306,7 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -231,7 +320,10 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
           hintText: hint,
           prefixIcon: Icon(icon, color: Colors.grey),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 16,
+          ),
         ),
       ),
     );

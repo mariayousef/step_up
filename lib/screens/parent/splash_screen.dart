@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:step_up/services/api_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,15 +20,32 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Animation setup
     _controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 5));
+        AnimationController(vsync: this, duration: const Duration(seconds: 3));
     _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
 
     _controller.forward();
 
-    // Navigate after 3 seconds to Role Selection instead of directly to onboarding
-    Timer(const Duration(seconds: 5), () {
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    // Wait for animation to finish
+    await Future.delayed(const Duration(seconds: 3));
+    
+    if (!mounted) return;
+
+    final token = await ApiService.getToken();
+    final userType = await ApiService.getUserType();
+
+    if (token != null && token.isNotEmpty) {
+      if (userType == 'doctor') {
+        Navigator.pushReplacementNamed(context, '/doctor_home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/parent_home');
+      }
+    } else {
       Navigator.pushReplacementNamed(context, '/role_selection');
-    });
+    }
   }
 
   @override

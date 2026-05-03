@@ -14,6 +14,30 @@ class Doctor {
     required this.rating,
     required this.imageUrl,
   });
+
+  factory Doctor.fromJson(Map<String, dynamic> json) {
+    final clinics = json['clinics'];
+    final clinicAddress = clinics is List && clinics.isNotEmpty
+        ? clinics.first.toString()
+        : (json['clinic_address'] ?? json['clinicAddress'] ?? '').toString();
+
+    return Doctor(
+      id: (json['id'] ?? json['_id'] ?? '').toString(),
+      name: (json['name'] ?? 'Unknown Doctor').toString(),
+      specialization: (json['specialization'] ?? 'Specialist').toString(),
+      clinicAddress: clinicAddress.isEmpty
+          ? 'No clinic address'
+          : clinicAddress,
+      rating: _double(json['rating']) ?? 0,
+      imageUrl: (json['image_url'] ?? json['imageUrl'] ?? '').toString(),
+    );
+  }
+
+  static double? _double(dynamic value) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
+  }
 }
 
 // Dummy data for testing
@@ -24,7 +48,8 @@ final List<Doctor> dummyDoctors = [
     specialization: 'Pediatrician',
     clinicAddress: 'Maadi St, Cairo',
     rating: 4.8,
-    imageUrl: 'assets/images/doctor1.png', // We can use a default icon if not available
+    imageUrl:
+        'assets/images/doctor1.png', // We can use a default icon if not available
   ),
   Doctor(
     id: '2',
