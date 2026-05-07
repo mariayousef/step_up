@@ -113,8 +113,9 @@ class _DoctorsListScreenState extends State<DoctorsListScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
-                    'Could not load online doctors. Showing saved doctors.',
-                    style: TextStyle(color: Colors.orange.shade700),
+                    'API Error: ${snapshot.error}',
+                    style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               for (var index = 0; index < doctors.length; index++)

@@ -6,9 +6,32 @@ import 'body_training_screen.dart';
 import 'exit_child_mode_screen.dart';
 import 'games_screen.dart';
 import 'speech_levels_screen.dart';
+import 'services/api_service.dart';
 
-class ChildDashboardScreen extends StatelessWidget {
+class ChildDashboardScreen extends StatefulWidget {
   const ChildDashboardScreen({super.key});
+
+  @override
+  State<ChildDashboardScreen> createState() => _ChildDashboardScreenState();
+}
+
+class _ChildDashboardScreenState extends State<ChildDashboardScreen> {
+  String _childName = 'Buddy';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChildName();
+  }
+
+  Future<void> _loadChildName() async {
+    final user = await ApiService.getUser();
+    if (user != null && user['child_name'] != null) {
+      setState(() {
+        _childName = user['child_name'];
+      });
+    }
+  }
 
   void _openExitScreen(BuildContext context) {
     Navigator.push(
@@ -77,35 +100,36 @@ class ChildDashboardScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Icon(Icons.star_rounded, color: Colors.amber, size: 26),
+        const Icon(Icons.star_rounded, color: Colors.amber, size: 36),
         Flexible(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               CircleAvatar(
-                radius: 28,
+                radius: 36,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                 child: const Icon(
                   Icons.person,
                   color: AppColors.primary,
-                  size: 34,
+                  size: 42,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Hi Ahmed!',
+              const SizedBox(height: 12),
+              Text(
+                'Hi $_childName!',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppColors.textMain,
-                  fontSize: 16,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
                 ),
               ),
             ],
           ),
         ),
-        const Icon(Icons.favorite_border, color: Colors.pinkAccent, size: 26),
+        const Icon(Icons.favorite_rounded, color: Colors.pinkAccent, size: 36),
       ],
     );
   }
@@ -114,7 +138,7 @@ class ChildDashboardScreen extends StatelessWidget {
     final actions = [
       _TrainingAction(
         title: 'Body Training',
-        icon: Icons.accessibility_new,
+        icon: Icons.accessibility_new_rounded,
         color: const Color(0xFF00C471),
         onTap: () => Navigator.push(
           context,
@@ -123,7 +147,7 @@ class ChildDashboardScreen extends StatelessWidget {
       ),
       _TrainingAction(
         title: 'Speech Training',
-        icon: Icons.record_voice_over,
+        icon: Icons.record_voice_over_rounded,
         color: const Color(0xFF007BFF),
         onTap: () => Navigator.push(
           context,
@@ -147,7 +171,7 @@ class ChildDashboardScreen extends StatelessWidget {
           delay: Duration(milliseconds: 100 * (index + 1)),
           child: _TrainingButton(action: actions[index]),
         ),
-        if (index != actions.length - 1) const SizedBox(height: 16),
+        if (index != actions.length - 1) const SizedBox(height: 20),
       ],
     ];
   }
@@ -174,31 +198,62 @@ class _TrainingButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 90,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: action.color,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+    return GestureDetector(
+      onTap: action.onTap,
+      child: Container(
+        width: double.infinity,
+        height: 110,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [action.color.withValues(alpha: 0.8), action.color],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: action.color.withValues(alpha: 0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
-        onPressed: action.onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            Icon(action.icon, color: Colors.white, size: 28),
-            const SizedBox(height: 6),
-            Text(
-              action.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            Positioned(
+              right: -20,
+              top: -20,
+              child: CircleAvatar(
+                radius: 60,
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(action.icon, color: Colors.white, size: 36),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Text(
+                      action.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 24),
+                ],
               ),
             ),
           ],
@@ -217,23 +272,26 @@ class _ExitButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 56,
+      height: 64,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFF6B6B),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(30),
           ),
+          elevation: 5,
+          shadowColor: const Color(0xFFFF6B6B).withValues(alpha: 0.5),
         ),
         onPressed: onPressed,
         child: const Text(
-          'Exit child mode',
+          'Exit Child Mode',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: Colors.white,
-            fontSize: 17,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
+            letterSpacing: 1,
           ),
         ),
       ),

@@ -31,6 +31,7 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   Future<void> _initializeApp() async {
+    await loadSafeZones();
     await _initializeNotifications();
     _syncChildLocationFromSensor();
   }
@@ -50,6 +51,16 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   void _checkGeofence(LatLng currentPos) {
+    bool hasActiveZones = globalSafeZones.any((z) => z.active);
+
+    if (!hasActiveZones) {
+      // If parent didn't set any active safe zones, don't trigger alerts
+      isChildSafeNotifier.value = true;
+      currentZoneNameNotifier.value = 'No zones configured';
+      _wasOutside = false;
+      return;
+    }
+
     bool isSafe = false;
     String? currentZoneName;
 
@@ -253,30 +264,34 @@ class _LocationScreenState extends State<LocationScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on,
-                            color: AppColors.primary,
-                            size: 20,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: TextEditingController(text: dialogLocation.latitude.toString()),
+                            decoration: const InputDecoration(labelText: 'Latitude', border: OutlineInputBorder()),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                            onChanged: (value) {
+                              final parsed = double.tryParse(value);
+                              if (parsed != null) dialogLocation = LatLng(parsed, dialogLocation.longitude);
+                            },
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Loc: ${dialogLocation.latitude.toStringAsFixed(4)}, ${dialogLocation.longitude.toStringAsFixed(4)}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: TextEditingController(text: dialogLocation.longitude.toString()),
+                            decoration: const InputDecoration(labelText: 'Longitude', border: OutlineInputBorder()),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                            onChanged: (value) {
+                              final parsed = double.tryParse(value);
+                              if (parsed != null) dialogLocation = LatLng(dialogLocation.latitude, parsed);
+                            },
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: () {
                         _tempName = nameController.text;
@@ -354,6 +369,7 @@ class _LocationScreenState extends State<LocationScreen> {
                           ),
                         );
                       });
+                      saveSafeZones();
                     } else {
                       setState(() {
                         globalSafeZones[targetIndex] = SafeZone(
@@ -365,8 +381,10 @@ class _LocationScreenState extends State<LocationScreen> {
                           sendNotifications: sendNotifications,
                         );
                       });
+                      saveSafeZones();
                     }
                     if (_currentP != null) _checkGeofence(_currentP!);
+                    _mapController.move(dialogLocation, 16);
                     _editingIndex = null;
                     _editingZone = null;
                     _tempName = null;
@@ -490,35 +508,57 @@ class _LocationScreenState extends State<LocationScreen> {
                           subdomains: ['a', 'b', 'c', 'd'],
                         ),
                         CircleLayer(
-                          circles: globalSafeZones
-                              .where((zone) => zone.active)
-                              .map(
-                                (zone) => CircleMarker(
-                                  point: LatLng(zone.latitude, zone.longitude),
-                                  color: Colors.green.withValues(alpha: 0.3),
-                                  borderStrokeWidth: 2,
-                                  borderColor: Colors.green,
-                                  useRadiusInMeter: true,
-                                  radius: zone.radius.toDouble(),
-                                ),
-                              )
-                              .toList(),
+                          circles: globalSafeZones.isEmpty 
+                              ? <CircleMarker>[] 
+                              : globalSafeZones
+                                  .where((zone) => zone.active)
+                                  .map(
+                                    (zone) => CircleMarker(
+                                      point: LatLng(zone.latitude, zone.longitude),
+                                      color: Colors.green.withValues(alpha: 0.3),
+                                      borderStrokeWidth: 2,
+                                      borderColor: Colors.green,
+                                      useRadiusInMeter: true,
+                                      radius: zone.radius.toDouble(),
+                                    ),
+                                  )
+                                  .toList(),
                         ),
-                        if (_currentP != null)
-                          MarkerLayer(
-                            markers: [
-                              Marker(
-                                point: _currentP!,
-                                width: 50,
-                                height: 50,
-                                child: const Icon(
-                                  Icons.location_history,
-                                  color: Colors.blue,
-                                  size: 40,
-                                ),
+                        MarkerLayer(
+                          markers: _currentP == null ? <Marker>[] : [
+                            Marker(
+                              point: _currentP!,
+                              width: 150,
+                              height: 90,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                      border: Border.all(color: Colors.blue, width: 1.5),
+                                    ),
+                                    child: FittedBox(
+                                      child: Text(
+                                        'Child\n${_currentP!.latitude.toStringAsFixed(4)}, ${_currentP!.longitude.toStringAsFixed(4)}',
+                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.person_pin_circle,
+                                    color: Colors.blue,
+                                    size: 40,
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     if (_isPickingLocation)
@@ -738,6 +778,7 @@ class _LocationScreenState extends State<LocationScreen> {
                                 value: zone.active,
                                 onChanged: (value) {
                                   setState(() => zone.active = value);
+                                  saveSafeZones();
                                   if (_currentP != null) {
                                     _checkGeofence(_currentP!);
                                   }
@@ -768,6 +809,7 @@ class _LocationScreenState extends State<LocationScreen> {
                                       setState(
                                         () => zone.sendNotifications = value,
                                       );
+                                      saveSafeZones();
                                     },
                                     activeThumbColor: AppColors.primary,
                                   ),
@@ -787,6 +829,7 @@ class _LocationScreenState extends State<LocationScreen> {
                                       setState(() {
                                         globalSafeZones.removeAt(index);
                                       });
+                                      saveSafeZones();
                                       if (_currentP != null) {
                                         _checkGeofence(_currentP!);
                                       }

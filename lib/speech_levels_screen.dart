@@ -2,29 +2,28 @@ import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
-import 'speech_training_screen.dart';
-
+import 'speech_stages_screen.dart';
 class SpeechLevelsScreen extends StatelessWidget {
   const SpeechLevelsScreen({super.key});
 
   static const _levels = [
     _SpeechLevel(
-      level: 0,
-      title: 'Level 0',
+      level: 1,
+      title: 'Level 1',
       subtitle: 'English Letters',
       color: Color(0xFF4CAF50),
       icon: Icons.abc_rounded,
     ),
     _SpeechLevel(
-      level: 1,
-      title: 'Level 1',
+      level: 2,
+      title: 'Level 2',
       subtitle: 'Letter Sounds',
       color: Color(0xFFFF9800),
       icon: Icons.record_voice_over_rounded,
     ),
     _SpeechLevel(
-      level: 2,
-      title: 'Level 2',
+      level: 3,
+      title: 'Level 3',
       subtitle: 'Words',
       color: Color(0xFF2196F3),
       icon: Icons.chat_bubble_outline_rounded,
@@ -110,7 +109,7 @@ class _LevelCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => SpeechTrainingScreen(level: level.level),
+            builder: (_) => SpeechStagesScreen(level: level.level),
           ),
         );
       },
