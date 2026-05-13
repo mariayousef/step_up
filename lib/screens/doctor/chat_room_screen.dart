@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:step_up/services/chat_service.dart';
+import 'package:step_up/models/message_model.dart';
 
 class ChatRoomScreen extends StatefulWidget {
+  final String parentId;
   final String parentName;
-  const ChatRoomScreen({super.key, required this.parentName});
+  final String doctorId;
+
+  const ChatRoomScreen({
+    super.key,
+    required this.parentId,
+    required this.parentName,
+    required this.doctorId,
+  });
 
   @override
   State<ChatRoomScreen> createState() => _ChatRoomScreenState();
@@ -12,7 +22,13 @@ class ChatRoomScreen extends StatefulWidget {
 
 class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ChatService _chatService = ChatService();
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint("CHAT ROOM START: Doctor ${widget.doctorId} -> Parent ${widget.parentId}");
+  }
 
   void _sendMessage() async {
     if (_messageController.text.trim().isNotEmpty) {
@@ -20,32 +36,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       _messageController.clear();
       FocusScope.of(context).unfocus();
 
-      await _firestore
-          .collection('chats')
-          .doc(widget.parentName)
-          .collection('messages')
-          .add({
-        'text': text,
-        'sender': 'Doctor',
-        'isMe': true,
-        'type': 'text',
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      await _chatService.sendMessage(widget.parentId, text, widget.doctorId);
     }
   }
 
   void _sendAttachment(String textMessage) async {
-    await _firestore
-        .collection('chats')
-        .doc(widget.parentName)
-        .collection('messages')
-        .add({
-      'text': textMessage,
-      'sender': 'Doctor',
-      'isMe': true,
-      'type': 'attachment',
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    // For simplicity, attachments are sent as text messages for now
+    await _chatService.sendMessage(widget.parentId, textMessage, widget.doctorId);
   }
 
   // دالة تشغيل منتقي الصور
@@ -165,12 +162,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('chats')
-                  .doc(widget.parentName)
-                  .collection('messages')
-                  .orderBy('timestamp', descending: false)
-                  .snapshots(),
+              stream: _chatService.getMessages(widget.doctorId, widget.parentId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator(color: Color(0xFF00796B)));
@@ -182,17 +174,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   return const Center(child: Text('No messages yet. Start the conversation!'));
                 }
 
-                final messages = snapshot.data!.docs;
+                final messagesDocs = snapshot.data!.docs;
 
                 return ListView.builder(
                   padding: const EdgeInsets.only(top: 10, bottom: 20),
-                  itemCount: messages.length,
+                  itemCount: messagesDocs.length,
                   itemBuilder: (context, index) {
-                    var data = messages[index].data() as Map<String, dynamic>;
+                    var data = messagesDocs[index].data() as Map<String, dynamic>;
+                    final message = Message.fromMap(data);
+                    
                     Map<String, dynamic> msg = {
-                      'text': data['text'] ?? '',
-                      'isMe': data['isMe'] ?? false,
-                      'type': data['type'] ?? 'text',
+                      'text': message.text,
+                      'isMe': message.senderId == widget.doctorId,
+                      'type': message.text.contains('📷') || message.text.contains('📄') ? 'attachment' : 'text',
                     };
                     return _buildMessageBubble(msg);
                   },

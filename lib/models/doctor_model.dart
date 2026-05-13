@@ -2,7 +2,8 @@ class Doctor {
   final String id;
   final String name;
   final String specialization;
-  final String clinicAddress;
+  final List<String> clinics;
+  final String phoneNumber;
   final double rating;
   final String imageUrl;
 
@@ -10,33 +11,37 @@ class Doctor {
     required this.id,
     required this.name,
     required this.specialization,
-    required this.clinicAddress,
-    required this.rating,
-    required this.imageUrl,
+    required this.clinics,
+    required this.phoneNumber,
+    this.rating = 0.0,
+    this.imageUrl = '',
   });
 
+  String get clinicAddress => clinics.isNotEmpty ? clinics.first : 'No clinic address';
+
   factory Doctor.fromJson(Map<String, dynamic> json) {
-    final clinics = json['clinics'];
-    final clinicAddress = clinics is List && clinics.isNotEmpty
-        ? clinics.first.toString()
-        : (json['clinic_address'] ?? json['clinicAddress'] ?? '').toString();
+    List<String> parsedClinics = [];
+    if (json['clinics'] is List) {
+      parsedClinics = List<String>.from(json['clinics'].map((c) => c.toString()));
+    } else if (json['clinic_address'] != null || json['clinicAddress'] != null) {
+      parsedClinics = [(json['clinic_address'] ?? json['clinicAddress']).toString()];
+    }
 
     return Doctor(
       id: (json['id'] ?? json['_id'] ?? '').toString(),
       name: (json['name'] ?? 'Unknown Doctor').toString(),
       specialization: (json['specialization'] ?? 'Specialist').toString(),
-      clinicAddress: clinicAddress.isEmpty
-          ? 'No clinic address'
-          : clinicAddress,
-      rating: _double(json['rating']) ?? 0,
+      clinics: parsedClinics,
+      phoneNumber: (json['phone_number'] ?? json['phoneNumber'] ?? '').toString(),
+      rating: _toDouble(json['rating']),
       imageUrl: (json['image_url'] ?? json['imageUrl'] ?? '').toString(),
     );
   }
 
-  static double? _double(dynamic value) {
+  static double _toDouble(dynamic value) {
     if (value is double) return value;
     if (value is num) return value.toDouble();
-    return double.tryParse(value?.toString() ?? '');
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
   }
 }
 
@@ -46,33 +51,18 @@ final List<Doctor> dummyDoctors = [
     id: '1',
     name: 'Dr. Ahmed Mahmoud',
     specialization: 'Pediatrician',
-    clinicAddress: 'Maadi St, Cairo',
+    clinics: ['Maadi St, Cairo'],
+    phoneNumber: '01012345678',
     rating: 4.8,
-    imageUrl:
-        'assets/images/doctor1.png', // We can use a default icon if not available
+    imageUrl: 'assets/images/doctor1.png',
   ),
   Doctor(
     id: '2',
     name: 'Dr. Sarah Khaled',
     specialization: 'Speech Therapist',
-    clinicAddress: 'Nasr City, Cairo',
+    clinics: ['Nasr City, Cairo'],
+    phoneNumber: '01012345679',
     rating: 4.9,
     imageUrl: 'assets/images/doctor2.png',
-  ),
-  Doctor(
-    id: '3',
-    name: 'Dr. Mohamed Ali',
-    specialization: 'Pediatric Physiotherapy',
-    clinicAddress: 'Mohandeseen, Giza',
-    rating: 4.7,
-    imageUrl: 'assets/images/doctor3.png',
-  ),
-  Doctor(
-    id: '4',
-    name: 'Dr. Fatima Hassan',
-    specialization: 'Behavior Modification',
-    clinicAddress: 'Heliopolis, Cairo',
-    rating: 4.6,
-    imageUrl: 'assets/images/doctor4.png',
   ),
 ];

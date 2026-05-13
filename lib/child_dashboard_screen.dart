@@ -2,7 +2,7 @@ import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
-import 'body_training_screen.dart';
+import 'package:step_up/screens/child/body_training_screen.dart';
 import 'exit_child_mode_screen.dart';
 import 'games_screen.dart';
 import 'speech_levels_screen.dart';

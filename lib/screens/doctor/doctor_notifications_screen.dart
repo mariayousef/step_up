@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:step_up/screens/doctor/patient_details_screen.dart';
 
 class DoctorNotificationsScreen extends StatelessWidget {
   const DoctorNotificationsScreen({super.key});
@@ -17,16 +16,12 @@ class DoctorNotificationsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _buildNotifItem(
-            context,
-            'New Connection Request', 
-            'Parent Omar has requested to connect for child "Ali". Tap to review.', 
+            'New Appointment Booked', 
+            'A new appointment has been scheduled for child "Ali". Check your cases.', 
             '10 mins ago', 
-            Icons.person_add,
-            isRequest: true,
-            childName: 'Ali',
+            Icons.calendar_today,
           ),
           _buildNotifItem(
-            context,
             'System Update', 
             'Your profile was verified successfully.', 
             '2 hours ago', 
@@ -37,7 +32,7 @@ class DoctorNotificationsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildNotifItem(BuildContext context, String title, String subtitle, String time, IconData icon, {bool isRequest = false, String? childName}) {
+  Widget _buildNotifItem(String title, String subtitle, String time, IconData icon) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
@@ -53,20 +48,6 @@ class DoctorNotificationsScreen extends StatelessWidget {
             Text(time, style: const TextStyle(fontSize: 10, color: Colors.grey)),
           ],
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: () {
-          if (isRequest && childName != null) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PatientDetailsScreen(
-                  patientName: childName,
-                  isPendingRequest: true, // Passes the flag to show the Accept button!
-                ),
-              ),
-            );
-          }
-        },
       ),
     );
   }

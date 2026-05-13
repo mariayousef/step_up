@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:step_up/app_colors.dart';
 import 'package:step_up/models/doctor_model.dart';
 import 'package:step_up/models/booking_model.dart';
+import 'package:step_up/models/appointment_model.dart';
 import 'package:step_up/services/doctor_service.dart';
 import 'package:step_up/screens/parent/doctor_booking_screen.dart';
 import 'package:step_up/screens/parent/doctor_chat_screen.dart';
@@ -17,11 +18,19 @@ class DoctorsListScreen extends StatefulWidget {
 
 class _DoctorsListScreenState extends State<DoctorsListScreen> {
   late final Future<List<Doctor>> _doctorsFuture;
+  Future<List<Appointment>>? _bookingsFuture;
 
   @override
   void initState() {
     super.initState();
     _doctorsFuture = DoctorService.fetchDoctors();
+    _refreshBookings();
+  }
+
+  void _refreshBookings() {
+    setState(() {
+      _bookingsFuture = DoctorService.fetchParentAppointments();
+    });
   }
 
   @override
@@ -60,13 +69,35 @@ class _DoctorsListScreenState extends State<DoctorsListScreen> {
           // My Bookings List
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                return FadeInUp(
-                  delay: Duration(milliseconds: 100 * index),
-                  child: _buildBookingCard(context, dummyBookings[index]),
+            sliver: FutureBuilder<List<Appointment>>(
+              future: _bookingsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SliverToBoxAdapter(
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                
+                final bookings = snapshot.data ?? [];
+                
+                if (bookings.isEmpty) {
+                  return const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Text('No bookings found.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                    ),
+                  );
+                }
+
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    return FadeInUp(
+                      delay: Duration(milliseconds: 100 * index),
+                      child: _buildBookingCardFromAppointment(context, bookings[index]),
+                    );
+                  }, childCount: bookings.length),
                 );
-              }, childCount: dummyBookings.length),
+              },
             ),
           ),
           // Discover Doctors Header
@@ -127,6 +158,113 @@ class _DoctorsListScreenState extends State<DoctorsListScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBookingCardFromAppointment(BuildContext context, Appointment appointment) {
+    final doctor = appointment.doctor;
+    const isAccepted = true; // For now, treat all real appointments as accepted or pending
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [AppColors.softShadow],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.person,
+                    size: 30,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        doctor?.name ?? 'Unknown Doctor',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Child: ${appointment.childName}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Active',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (doctor != null) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 45,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DoctorChatScreen(doctor: doctor),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  label: const Text('Chat with Doctor'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -253,13 +391,16 @@ class _DoctorsListScreenState extends State<DoctorsListScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(24),
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            final result = await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => DoctorBookingScreen(doctor: doctor),
               ),
             );
+            if (result == true) {
+              _refreshBookings();
+            }
           },
           child: Padding(
             padding: const EdgeInsets.all(16),

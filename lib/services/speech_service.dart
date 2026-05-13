@@ -3,21 +3,28 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/speech_level_content.dart';
+import 'api_service.dart';
 
 class SpeechService {
   static const String baseUrl = 'https://claribel-inescapable-ingrid.ngrok-free.dev/api';
   final Dio _dio = Dio();
-  
-  // Replace with actual auth token mechanism in your app
-  static const String dummyToken = 'TOKEN_HERE';
 
   SpeechService() {
     _dio.options.baseUrl = baseUrl;
     _dio.options.headers = {
       'Accept': 'application/json',
-      'Authorization': 'Bearer $dummyToken',
       'ngrok-skip-browser-warning': 'true',
     };
+
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        final token = await ApiService.getToken();
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+        return handler.next(options);
+      },
+    ));
   }
 
   Future<List<SpeechLevelContent>> getLevelContent(int levelId) async {
@@ -28,14 +35,18 @@ class SpeechService {
         final data = response.data;
         List<dynamic> listData = [];
         
-        if (data is Map && data['letters'] != null) {
-          listData = data['letters'];
+        if (data is Map) {
+          if (data['data'] != null && data['data'] is Map && data['data']['letters'] != null) {
+            listData = data['data']['letters'];
+          } else if (data['letters'] != null) {
+            listData = data['letters'];
+          } else if (data['data'] != null && data['data'] is List) {
+            listData = data['data'];
+          } else {
+            listData = [data];
+          }
         } else if (data is List) {
           listData = data;
-        } else if (data is Map && data['data'] != null) {
-          listData = data['data'];
-        } else if (data is Map) {
-          listData = [data]; // single object wrapped in list
         }
 
         return listData.map((json) => SpeechLevelContent.fromJson(json)).toList();
@@ -63,7 +74,7 @@ class SpeechService {
     }
   }
 
-  Future<double> submitSpeechScore({
+  Future<SpeechScoreResponse> submitSpeechScore({
     required String referenceAudioPath,
     required String childAudioPath,
   }) async {
@@ -83,10 +94,42 @@ class SpeechService {
         data = jsonDecode(data);
       }
       
-      final rawScore = data['score'] ?? data['accuracy'] ?? 0.0;
-      return double.tryParse(rawScore.toString()) ?? 0.0;
+      final resultData = data['data'] ?? data;
+      return SpeechScoreResponse.fromJson(resultData);
     } else {
       throw Exception('Failed to get score: ${response.statusCode} - ${response.data}');
     }
+  }
+}
+
+class SpeechScoreResponse {
+  final double score;
+  final String label;
+  final double similarity;
+  final double refDuration;
+  final double childDuration;
+
+  SpeechScoreResponse({
+    required this.score,
+    required this.label,
+    required this.similarity,
+    required this.refDuration,
+    required this.childDuration,
+  });
+
+  factory SpeechScoreResponse.fromJson(Map<String, dynamic> json) {
+    return SpeechScoreResponse(
+      score: _toDouble(json['score']),
+      label: json['label']?.toString() ?? '',
+      similarity: _toDouble(json['similarity']),
+      refDuration: _toDouble(json['ref_duration']),
+      childDuration: _toDouble(json['child_duration']),
+    );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
   }
 }

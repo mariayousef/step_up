@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:step_up/models/appointment_model.dart';
 
 class PatientDetailsScreen extends StatefulWidget {
-  final String patientName;
-  final bool isPendingRequest; // True if opened from Notifications (Request)
+  final Appointment appointment;
 
   const PatientDetailsScreen({
     super.key, 
-    required this.patientName,
-    this.isPendingRequest = false,
+    required this.appointment,
   });
 
   @override
@@ -15,29 +14,11 @@ class PatientDetailsScreen extends StatefulWidget {
 }
 
 class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
-  bool _isAccepted = false;
-
-  void _acceptRequest() {
-    setState(() {
-      _isAccepted = true;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Request from ${widget.patientName} has been accepted!'),
-        backgroundColor: const Color(0xFF00796B),
-      ),
-    );
-    // Pop back to home after 1 second
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) Navigator.pop(context);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.patientName} Details'),
+        title: Text('${widget.appointment.childName} Details'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 1,
@@ -60,42 +41,16 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.patientName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                      const Text('Age: 4 years, 2 months', style: TextStyle(color: Colors.grey)),
-                      const Text('Weight: 16 kg | Height: 102 cm', style: TextStyle(color: Colors.grey)),
+                      Text(widget.appointment.childName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      const Text('Patient Record', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+                      Text('Weight: ${widget.appointment.weight} kg | Height: ${widget.appointment.height} cm', style: const TextStyle(color: Colors.grey)),
+                      Text('Parent: ${widget.appointment.parent?.name ?? "N/A"} (${widget.appointment.parent?.phoneNumber ?? ""})', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 30),
-
-            if (widget.isPendingRequest && !_isAccepted) ...[
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Column(
-                  children: [
-                    const Text('This is a connection request from the parent.', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    ElevatedButton(
-                      onPressed: _acceptRequest,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00796B),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 45),
-                      ),
-                      child: const Text('Accept Request & Add to Cases'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 30),
-            ],
 
             // Mock Data showing progress
             const Text('Motor Skills Progress', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -110,6 +65,22 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             _buildProgressItem('Vocabulary (50 words)', 0.9),
             _buildProgressItem('Two-word sentences', 0.5),
             
+            const SizedBox(height: 24),
+            const Text('Booking Notes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Text(
+                widget.appointment.description.isEmpty ? 'No notes provided' : widget.appointment.description,
+                style: const TextStyle(color: Colors.black87),
+              ),
+            ),
+
             const SizedBox(height: 24),
             const Text('Recent Sessions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),

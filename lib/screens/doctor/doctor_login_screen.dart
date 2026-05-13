@@ -17,6 +17,7 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -121,7 +122,16 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
                   controller: _passwordController,
                   hint: 'Password',
                   icon: Icons.lock_outline,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 30),
@@ -202,6 +212,7 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
     required IconData icon,
     bool obscureText = false,
     TextInputType? keyboardType,
+    Widget? suffixIcon,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -209,7 +220,7 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -222,6 +233,7 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
         decoration: InputDecoration(
           hintText: hint,
           prefixIcon: Icon(icon, color: Colors.grey),
+          suffixIcon: suffixIcon,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,

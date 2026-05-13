@@ -16,6 +16,7 @@ class ApiService {
   static Future<Map<String, String>> _headers({bool authorized = false}) async {
     final headers = {
       "Content-Type": "application/json",
+      "Accept": "application/json",
       "ngrok-skip-browser-warning": "true",
     };
 

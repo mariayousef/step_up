@@ -20,7 +20,7 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
   final nameController = TextEditingController();
   final ageController = TextEditingController();
 
-  String selectedGender = 'Boy';
+  String selectedGender = 'male';
   bool isLoading = false;
 
   final AuthService authService = AuthService();
@@ -39,39 +39,46 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
       isLoading = true;
     });
 
-    ChildModel child = ChildModel(
-      name: nameController.text.trim(),
-      age: int.parse(ageController.text.trim()),
-      gender: selectedGender,
-    );
-
-    RegisterRequestModel request = RegisterRequestModel(
-      parent: widget.parent,
-      child: child,
-    );
-
-    final success =
-    await authService.registerParentAndChild(request);
-
-    if (!mounted) return;
-
-    setState(() {
-      isLoading = false;
-    });
-
-    if (success) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false,
+    try {
+      final success = await authService.registerParent(
+        name: widget.parent.name,
+        email: widget.parent.email,
+        password: widget.parent.password,
+        phoneNumber: widget.parent.phoneNumber,
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration failed, please try again'),
-          backgroundColor: Colors.red,
-        ),
-      );
+
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      if (success) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration failed, please try again'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

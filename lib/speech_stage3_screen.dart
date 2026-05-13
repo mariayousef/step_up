@@ -130,7 +130,7 @@ class _SpeechStage3ScreenState extends State<SpeechStage3Screen> {
         throw Exception("Reference audio could not be loaded");
       }
 
-      final score = await _speechService.submitSpeechScore(
+      final response = await _speechService.submitSpeechScore(
         referenceAudioPath: refPath,
         childAudioPath: _recordedFilePath!,
       );
@@ -141,9 +141,9 @@ class _SpeechStage3ScreenState extends State<SpeechStage3Screen> {
         _isAnalyzing = false;
       });
 
-      _showScoreAnimation(score);
+      _showScoreAnimation(response);
       
-      bool isPassed = score > 5.0;
+      bool isPassed = response.score > 5.0;
       
       if (isPassed) {
         await Future.delayed(const Duration(milliseconds: 3000));
@@ -169,7 +169,8 @@ class _SpeechStage3ScreenState extends State<SpeechStage3Screen> {
     }
   }
 
-  void _showScoreAnimation(double score) {
+  void _showScoreAnimation(SpeechScoreResponse response) {
+    double score = response.score;
     bool isPassed = score > 5.0;
     
     showDialog(

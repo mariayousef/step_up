@@ -16,7 +16,6 @@ class DoctorAuthService {
       'phone_number': phoneNumber,
       'specialization': specialization,
       'clinics': clinics,
-      'user_type': 'doctor',
     });
 
     // Save input data manually for Profile

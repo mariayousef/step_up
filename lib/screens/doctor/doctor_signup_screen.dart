@@ -24,6 +24,7 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
   ];
 
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   void _addClinicField() {
     setState(() {
@@ -83,7 +84,6 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
 
       if (!mounted) return;
       
-      // Show success message and go back to Login
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Registration successful! Please login with your credentials.'),
@@ -171,7 +171,16 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
                   controller: _passwordController,
                   hint: 'Password',
                   icon: Icons.lock_outline,
-                  obscureText: true,
+                  obscureText: _obscurePassword,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -299,6 +308,7 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
     required IconData icon,
     bool obscureText = false,
     TextInputType? keyboardType,
+    Widget? suffixIcon,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -306,7 +316,7 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -319,6 +329,7 @@ class _DoctorSignupScreenState extends State<DoctorSignupScreen> {
         decoration: InputDecoration(
           hintText: hint,
           prefixIcon: Icon(icon, color: Colors.grey),
+          suffixIcon: suffixIcon,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,

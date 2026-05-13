@@ -3,18 +3,25 @@ import '../models/register_request_model.dart';
 
 class AuthService {
   // Parent Registration
-  Future<bool> registerParentAndChild(RegisterRequestModel data) async {
+  Future<bool> registerParent({
+    required String name,
+    required String email,
+    required String password,
+    required String phoneNumber,
+  }) async {
     try {
-      final response = await ApiService.postJson('/api/auth/register', data.toJson());
+      final response = await ApiService.postJson('/api/auth/register', {
+        'name': name,
+        'email': email,
+        'password': password,
+        'phone_number': phoneNumber,
+      });
       
-      // Save input data manually to ensure Profile is populated immediately
+      // Save input data for profile
       final inputData = {
-        'name': data.parent.name,
-        'email': data.parent.email,
-        'phone_number': data.parent.phoneNumber,
-        'child_name': data.child.name,
-        'child_age': data.child.age,
-        'child_gender': data.child.gender,
+        'name': name,
+        'email': email,
+        'phone_number': phoneNumber,
       };
       await ApiService.saveUser(inputData);
 
@@ -33,6 +40,10 @@ class AuthService {
         'email': email,
         'password': password,
       });
+      
+      // Even if response is sparse, save the email as a fallback ID
+      await ApiService.saveUser({'email': email});
+      
       await _saveTokenIfPresent(response);
       return true;
     } catch (e) {

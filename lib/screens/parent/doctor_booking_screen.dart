@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:step_up/app_colors.dart';
 import 'package:step_up/models/doctor_model.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:step_up/services/doctor_service.dart';
 
 class DoctorBookingScreen extends StatefulWidget {
   final Doctor doctor;
@@ -18,6 +19,8 @@ class _DoctorBookingScreenState extends State<DoctorBookingScreen> {
   final _ageController = TextEditingController();
   final _heightController = TextEditingController();
   final _weightController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -25,49 +28,83 @@ class _DoctorBookingScreenState extends State<DoctorBookingScreen> {
     _ageController.dispose();
     _heightController.dispose();
     _weightController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
-  void _submitBooking() {
+  Future<void> _submitBooking() async {
     if (_formKey.currentState!.validate()) {
-      // Logic for saving booking would go here
+      setState(() => _isSubmitting = true);
       
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          icon: const Icon(Icons.check_circle, color: AppColors.primary, size: 60),
-          title: const Text(
-            'Booking Successful',
-            style: TextStyle(color: AppColors.textMain, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          content: Text(
-            'Your appointment with ${widget.doctor.name} has been booked successfully.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textSecondary),
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Go back to list
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-              ),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      try {
+        final success = await DoctorService.bookAppointment(
+          doctorId: int.tryParse(widget.doctor.id) ?? 1,
+          childName: _nameController.text.trim(),
+          weight: double.tryParse(_weightController.text) ?? 0.0,
+          height: double.tryParse(_heightController.text) ?? 0.0,
+          description: _descriptionController.text.trim().isEmpty 
+              ? "No description provided" 
+              : _descriptionController.text.trim(),
+        );
+
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+
+        if (success) {
+          _showSuccessDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to book appointment. Please try again.')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isSubmitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
+      }
     }
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        icon: const Icon(Icons.check_circle, color: AppColors.primary, size: 60),
+        title: const Text(
+          'Booking Successful',
+          style: TextStyle(color: AppColors.textMain, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        content: Text(
+          'Your appointment with ${widget.doctor.name} has been booked successfully.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context, true); // Go back to list with success flag
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            ),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -198,13 +235,21 @@ class _DoctorBookingScreenState extends State<DoctorBookingScreen> {
                       keyboardType: TextInputType.number,
                       validator: (value) => value!.isEmpty ? 'Please enter height' : null,
                     ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _descriptionController,
+                      label: 'Reason for visit (optional)',
+                      icon: Icons.description_outlined,
+                      maxLines: 3,
+                    ),
                     const SizedBox(height: 40),
 
                     // Submit Button
                     SizedBox(
                       width: double.infinity,
+                      height: 55,
                       child: ElevatedButton(
-                        onPressed: _submitBooking,
+                        onPressed: _isSubmitting ? null : _submitBooking,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
@@ -213,10 +258,12 @@ class _DoctorBookingScreenState extends State<DoctorBookingScreen> {
                           ),
                           elevation: 2,
                         ),
-                        child: const Text(
-                          'Confirm Booking',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
+                        child: _isSubmitting
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text(
+                                'Confirm Booking',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
                       ),
                     ),
                   ],
@@ -235,11 +282,13 @@ class _DoctorBookingScreenState extends State<DoctorBookingScreen> {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
+    int maxLines = 1,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
+      maxLines: maxLines,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: AppColors.textSecondary),

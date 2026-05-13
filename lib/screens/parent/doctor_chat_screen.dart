@@ -5,6 +5,8 @@ import 'package:step_up/models/doctor_model.dart';
 import 'package:step_up/models/message_model.dart';
 import 'package:step_up/services/chat_service.dart';
 
+import 'package:step_up/services/api_service.dart';
+
 class DoctorChatScreen extends StatefulWidget {
   final Doctor doctor;
 
@@ -17,17 +19,53 @@ class DoctorChatScreen extends StatefulWidget {
 class _DoctorChatScreenState extends State<DoctorChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ChatService _chatService = ChatService();
-  
-  // Dummy current parent ID for now as requested
-  final String _currentUserId = 'current_parent_123';
+  String _currentUserId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await ApiService.getUser();
+    String? foundId = user?['id']?.toString() ?? 
+                     user?['phone_number']?.toString();
+    
+    // If ID is still unknown, try to fetch it from their own appointment records
+    if (foundId == null || foundId == 'unknown_parent' || foundId.isEmpty) {
+      try {
+        final response = await ApiService.getJson('/api/appointments', authorized: true);
+        if (response['data'] is List && (response['data'] as List).isNotEmpty) {
+          final first = response['data'][0];
+          foundId = first['parent_id']?.toString() ?? 
+                    (first['parent'] is Map ? first['parent']['id']?.toString() : null);
+          
+          if (foundId != null) {
+            // Save it for next time
+            await ApiService.saveUser({'id': foundId});
+          }
+        }
+      } catch (e) {
+        debugPrint("Chat ID discovery error: $e");
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _currentUserId = foundId ?? 'unknown_parent';
+      });
+      debugPrint("PARENT CHAT LOADED: Parent $_currentUserId -> Doctor ${widget.doctor.id}");
+    }
+  }
 
   void _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+    if (_messageController.text.trim().isEmpty || _currentUserId.isEmpty) return;
     
     final text = _messageController.text.trim();
     _messageController.clear();
     
-    await _chatService.sendMessage(widget.doctor.id, text, _currentUserId);
+    await _chatService.sendMessage(widget.doctor.id.toString(), text, _currentUserId);
   }
 
   String _formatTime(Timestamp timestamp) {
