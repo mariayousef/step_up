@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:step_up/models/appointment_model.dart';
+import 'package:step_up/screens/doctor/chat_room_screen.dart';
 
 class PatientDetailsScreen extends StatefulWidget {
   final Appointment appointment;
+  final String doctorId;
 
   const PatientDetailsScreen({
     super.key, 
     required this.appointment,
+    required this.doctorId,
   });
 
   @override
@@ -91,9 +94,37 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                 subtitle: const Text('2 days ago - Excellent response to standing exercises.'),
                 trailing: IconButton(icon: const Icon(Icons.arrow_forward_ios, size: 16), onPressed: () {}),
               ),
-            )
+            ),
+            const SizedBox(height: 80), // Space for FAB
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          final parentId = widget.appointment.parent?.id ?? widget.appointment.parent?.phoneNumber ?? 'N/A';
+          final parentName = widget.appointment.parent?.name ?? 'Parent';
+          
+          if (widget.doctorId.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Doctor ID still loading. Please wait a moment.')),
+            );
+            return;
+          }
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatRoomScreen(
+                parentId: parentId,
+                parentName: parentName,
+                doctorId: widget.doctorId,
+              ),
+            ),
+          );
+        },
+        backgroundColor: const Color(0xFF00796B),
+        icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+        label: const Text('Chat with Parent', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -124,3 +155,4 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     );
   }
 }
+

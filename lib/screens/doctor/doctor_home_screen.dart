@@ -394,7 +394,12 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => PatientDetailsScreen(appointment: appointment)),
+            MaterialPageRoute(
+              builder: (context) => PatientDetailsScreen(
+                appointment: appointment,
+                doctorId: _currentDoctorId,
+              ),
+            ),
           );
         },
       ),
