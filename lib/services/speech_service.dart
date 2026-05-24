@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../models/speech_level_content.dart';
 import 'api_service.dart';
 
@@ -62,8 +64,18 @@ class SpeechService {
   Future<String?> downloadReferenceAudio(String url) async {
     try {
       final directory = await getTemporaryDirectory();
-      final filename = url.split('/').last;
-      // In case filename is missing extension or has query params
+      var filename = url.split('/').last;
+      
+      // Remove query parameters if present
+      if (filename.contains('?')) {
+        filename = filename.split('?').first;
+      }
+      
+      // Ensure it has an extension for Laravel validation
+      if (!filename.contains('.')) {
+        filename += '.mp3';
+      }
+
       final path = '${directory.path}/ref_$filename';
       
       await _dio.download(url, path);
@@ -78,26 +90,61 @@ class SpeechService {
     required String referenceAudioPath,
     required String childAudioPath,
   }) async {
-    FormData formData = FormData.fromMap({
-      'reference': await MultipartFile.fromFile(referenceAudioPath),
-      'child': await MultipartFile.fromFile(childAudioPath),
-    });
+    try {
+      final token = await ApiService.getToken();
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/speech/score'),
+      );
 
-    final response = await _dio.post(
-      '/speech/score',
-      data: formData,
-    );
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      var data = response.data;
-      if (data is String) {
-        data = jsonDecode(data);
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
       }
-      
-      final resultData = data['data'] ?? data;
-      return SpeechScoreResponse.fromJson(resultData);
-    } else {
-      throw Exception('Failed to get score: ${response.statusCode} - ${response.data}');
+      request.headers['Accept'] = 'application/json';
+
+      // Attach reference file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'reference',
+          referenceAudioPath,
+          contentType: MediaType('audio', 'mpeg'),
+        ),
+      );
+
+      // Attach child file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'child',
+          childAudioPath,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        var data = jsonDecode(response.body);
+        final resultData = data['data'] ?? data;
+        return SpeechScoreResponse.fromJson(resultData);
+      } else {
+        print('Backend Error: ${response.statusCode} - ${response.body}');
+        String errorMessage = 'Failed to get score: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['errors'] != null) {
+            errorMessage = errorData['errors'].toString();
+          } else if (errorData['message'] != null) {
+            errorMessage = errorData['message'].toString();
+          }
+        } catch (_) {}
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      if (e is DioException) {
+        throw Exception('API Error: ${e.response?.data ?? e.message}');
+      }
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
     }
   }
 }

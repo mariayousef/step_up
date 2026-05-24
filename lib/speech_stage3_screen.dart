@@ -92,11 +92,11 @@ class _SpeechStage3ScreenState extends State<SpeechStage3Screen> {
 
     final directory = await getApplicationDocumentsDirectory();
     final filePath =
-        '${directory.path}/speech_stage3_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        '${directory.path}/speech_stage3_${DateTime.now().millisecondsSinceEpoch}.wav';
 
     await _audioRecorder.start(
       const RecordConfig(
-        encoder: AudioEncoder.aacLc,
+        encoder: AudioEncoder.wav,
         sampleRate: 44100,
         bitRate: 128000,
       ),
