@@ -3,12 +3,11 @@ import 'app_colors.dart';
 import 'safe_zone_model.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
-import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class LocationScreen extends StatefulWidget {
   const LocationScreen({super.key});
@@ -18,9 +17,7 @@ class LocationScreen extends StatefulWidget {
 }
 
 class _LocationScreenState extends State<LocationScreen> {
-
-  LatLng? _currentP;
-  StreamSubscription<Position>? positionStream;
+  LatLng? _currentP = childLocationNotifier.value;
   final MapController _mapController = MapController();
   bool _isFirstLocationLoad = true;
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -29,90 +26,44 @@ class _LocationScreenState extends State<LocationScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeNotifications();
-    _determinePosition();
+    childLocationNotifier.addListener(_syncChildLocationFromSensor);
+    _initializeApp();
   }
 
-  Future<void> _determinePosition() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+  Future<void> _initializeApp() async {
+    await loadSafeZones();
+    await _initializeNotifications();
+    _syncChildLocationFromSensor();
+  }
 
-    try {
-      serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        _showSnackBar('Location services are disabled. Please enable GPS.');
-        return;
-      }
+  void _syncChildLocationFromSensor() {
+    if (!mounted) return;
 
-      permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showSnackBar('Location permissions are denied');
-          return;
-        }
-      }
+    final sensorLocation = childLocationNotifier.value;
+    setState(() => _currentP = sensorLocation);
 
-      if (permission == LocationPermission.deniedForever) {
-        _showSnackBar(
-            'Location permissions are permanently denied, we cannot request permissions.');
-        return;
-      }
-
-      Position? lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
-        setState(() {
-          _currentP = LatLng(lastKnown.latitude, lastKnown.longitude);
-        });
-        if (_isFirstLocationLoad) {
-          _mapController.move(_currentP!, 15);
-          _isFirstLocationLoad = false;
-        }
-      }
-
-      // Start stream EARLIER for faster updates
-      positionStream = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 10, // Get updates even for small movements
-        ),
-      ).listen((Position position) {
-        if (mounted) {
-          setState(() {
-            _currentP = LatLng(position.latitude, position.longitude);
-            childLocationNotifier.value = _currentP!;
-
-            if (_isFirstLocationLoad) {
-              _mapController.move(_currentP!, 15);
-              _isFirstLocationLoad = false;
-            }
-          });
-          _checkGeofence(_currentP!);
-        }
-      });
-
-      // Still try to get a fresh current position once
-      Position freshPosition = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
-      );
-
-      if (mounted) {
-        setState(() {
-          _currentP = LatLng(freshPosition.latitude, freshPosition.longitude);
-        });
-        _checkGeofence(_currentP!);
-      }
-    } catch (e) {
-      debugPrint('Error getting location: $e');
-      _showSnackBar('Error getting location: $e');
+    if (_isFirstLocationLoad) {
+      _mapController.move(sensorLocation, 15);
+      _isFirstLocationLoad = false;
     }
+
+    _checkGeofence(sensorLocation);
   }
 
   void _checkGeofence(LatLng currentPos) {
+    bool hasActiveZones = globalSafeZones.any((z) => z.active);
+
+    if (!hasActiveZones) {
+      // If parent didn't set any active safe zones, don't trigger alerts
+      isChildSafeNotifier.value = true;
+      currentZoneNameNotifier.value = 'No zones configured';
+      _wasOutside = false;
+      return;
+    }
+
     bool isSafe = false;
     String? currentZoneName;
-    
+
     for (var zone in globalSafeZones) {
       if (!zone.active) continue;
 
@@ -137,8 +88,8 @@ class _LocationScreenState extends State<LocationScreen> {
       if (!_wasOutside) {
         _showSnackBar('ALERT: Child is outside safe zones!');
         _showNotification(
-          'Safe Zone Alert',
-          'Your child is outside the safe zone!',
+          'Safe Zone Alert 🚨',
+          'Attention: Your child has left the specified safe zone!',
         );
         _wasOutside = true;
       }
@@ -148,8 +99,14 @@ class _LocationScreenState extends State<LocationScreen> {
   }
 
   Future<void> _initializeNotifications() async {
+    // Request permissions using permission_handler to ensure it's awaited properly
+    var status = await Permission.notification.status;
+    if (status.isDenied) {
+      await Permission.notification.request();
+    }
+
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('ic_notification_alert');
 
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
@@ -160,30 +117,41 @@ class _LocationScreenState extends State<LocationScreen> {
   Future<void> _showNotification(String title, String body) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-      'safe_zone_alerts',
-      'Safe Zone Alerts',
-      channelDescription: 'Notifications for safe zone breaches',
-      importance: Importance.max,
-      priority: Priority.high,
-      ticker: 'ticker',
+          'safe_zone_alerts',
+          'Safe Zone Alerts',
+          channelDescription: 'Notifications for safe zone breaches',
+          importance: Importance.max,
+          priority: Priority.high,
+          ticker: 'ticker',
+        );
+
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
     );
 
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      title,
-      body,
-      platformChannelSpecifics,
-    );
+    try {
+      final int notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await flutterLocalNotificationsPlugin.show(
+        notificationId,
+        title,
+        body,
+        platformChannelSpecifics,
+      );
+    } catch (e) {
+      debugPrint('Notification Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Notification failed: $e. Try full restart.')),
+        );
+      }
+    }
   }
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   bool _isPickingLocation = false;
@@ -206,9 +174,16 @@ class _LocationScreenState extends State<LocationScreen> {
       _isSearching = true;
       _searchResults = [];
     });
-    final url = Uri.parse('https://nominatim.openstreetmap.org/search?q=$query&format=json&limit=5');
+    final url = Uri.https('nominatim.openstreetmap.org', '/search', {
+      'q': query,
+      'format': 'json',
+      'limit': '5',
+    });
     try {
-      final response = await http.get(url, headers: {'User-Agent': 'StepUpApp/1.0'});
+      final response = await http.get(
+        url,
+        headers: {'User-Agent': 'StepUpApp/1.0'},
+      );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (mounted) {
@@ -244,15 +219,19 @@ class _LocationScreenState extends State<LocationScreen> {
 
   @override
   void dispose() {
-    positionStream?.cancel();
+    childLocationNotifier.removeListener(_syncChildLocationFromSensor);
     _mapController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
   void _showZoneDialog({SafeZone? zone, int? index, LatLng? pickedLocation}) {
-    final nameController = TextEditingController(text: _tempName ?? zone?.name ?? '');
-    final radiusController = TextEditingController(text: _tempRadius ?? zone?.radius.toString() ?? '');
+    final nameController = TextEditingController(
+      text: _tempName ?? zone?.name ?? '',
+    );
+    final radiusController = TextEditingController(
+      text: _tempRadius ?? zone?.radius.toString() ?? '',
+    );
     bool sendNotifications = _tempNotify ?? zone?.sendNotifications ?? false;
 
     LatLng dialogLocation;
@@ -273,24 +252,46 @@ class _LocationScreenState extends State<LocationScreen> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text(zone == null && _editingZone == null ? 'Add Safe Zone' : 'Edit Safe Zone'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                zone == null && _editingZone == null
+                    ? 'Add Safe Zone'
+                    : 'Edit Safe Zone',
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.location_on, color: AppColors.primary, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text('Loc: ${dialogLocation.latitude.toStringAsFixed(4)}, ${dialogLocation.longitude.toStringAsFixed(4)}', style: const TextStyle(fontSize: 12))),
-                        ],
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: TextEditingController(text: dialogLocation.latitude.toString()),
+                            decoration: const InputDecoration(labelText: 'Latitude', border: OutlineInputBorder()),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                            onChanged: (value) {
+                              final parsed = double.tryParse(value);
+                              if (parsed != null) dialogLocation = LatLng(parsed, dialogLocation.longitude);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: TextEditingController(text: dialogLocation.longitude.toString()),
+                            decoration: const InputDecoration(labelText: 'Longitude', border: OutlineInputBorder()),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                            onChanged: (value) {
+                              final parsed = double.tryParse(value);
+                              if (parsed != null) dialogLocation = LatLng(dialogLocation.latitude, parsed);
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: () {
                         _tempName = nameController.text;
@@ -308,19 +309,30 @@ class _LocationScreenState extends State<LocationScreen> {
                       label: const Text('Pick on Map'),
                     ),
                     const SizedBox(height: 10),
-                    TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Zone Name')),
-                    TextField(controller: radiusController, decoration: const InputDecoration(labelText: 'Radius (meters)'), keyboardType: TextInputType.number),
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(labelText: 'Zone Name'),
+                    ),
+                    TextField(
+                      controller: radiusController,
+                      decoration: const InputDecoration(
+                        labelText: 'Radius (meters)',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
                     const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Send Notifications'),
-                        Switch(
-                          value: sendNotifications,
-                          onChanged: (value) => setStateDialog(() => sendNotifications = value),
-                          activeColor: AppColors.primary,
-                        ),
-                      ],
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Send Notifications',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      value: sendNotifications,
+                      onChanged: (value) {
+                        setStateDialog(() => sendNotifications = value);
+                      },
+                      activeThumbColor: AppColors.primary,
                     ),
                   ],
                 ),
@@ -328,7 +340,11 @@ class _LocationScreenState extends State<LocationScreen> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    _editingIndex = null; _editingZone = null; _tempName = null; _tempRadius = null; _tempNotify = null;
+                    _editingIndex = null;
+                    _editingZone = null;
+                    _tempName = null;
+                    _tempRadius = null;
+                    _tempNotify = null;
                     Navigator.pop(context);
                   },
                   child: const Text('Cancel'),
@@ -336,27 +352,109 @@ class _LocationScreenState extends State<LocationScreen> {
                 ElevatedButton(
                   onPressed: () {
                     final name = nameController.text.trim();
-                    final radius = int.tryParse(radiusController.text.trim()) ?? 100;
+                    final radius =
+                        int.tryParse(radiusController.text.trim()) ?? 100;
                     final targetIndex = index ?? _editingIndex;
                     final targetZone = zone ?? _editingZone;
 
                     if (targetIndex == null) {
                       setState(() {
-                        globalSafeZones.add(SafeZone(name: name, latitude: dialogLocation.latitude, longitude: dialogLocation.longitude, radius: radius, sendNotifications: sendNotifications));
+                        globalSafeZones.add(
+                          SafeZone(
+                            name: name,
+                            latitude: dialogLocation.latitude,
+                            longitude: dialogLocation.longitude,
+                            radius: radius,
+                            sendNotifications: sendNotifications,
+                          ),
+                        );
                       });
+                      saveSafeZones();
                     } else {
                       setState(() {
-                        globalSafeZones[targetIndex] = SafeZone(name: name, latitude: dialogLocation.latitude, longitude: dialogLocation.longitude, radius: radius, active: targetZone?.active ?? true, sendNotifications: sendNotifications);
+                        globalSafeZones[targetIndex] = SafeZone(
+                          name: name,
+                          latitude: dialogLocation.latitude,
+                          longitude: dialogLocation.longitude,
+                          radius: radius,
+                          active: targetZone?.active ?? true,
+                          sendNotifications: sendNotifications,
+                        );
                       });
+                      saveSafeZones();
                     }
-                    _editingIndex = null; _editingZone = null; _tempName = null; _tempRadius = null; _tempNotify = null;
+                    if (_currentP != null) _checkGeofence(_currentP!);
+                    _mapController.move(dialogLocation, 16);
+                    _editingIndex = null;
+                    _editingZone = null;
+                    _tempName = null;
+                    _tempRadius = null;
+                    _tempNotify = null;
                     Navigator.pop(context);
                   },
-                  child: Text((zone == null && _editingZone == null) ? 'Add' : 'Save'),
+                  child: Text(
+                    (zone == null && _editingZone == null) ? 'Add' : 'Save',
+                  ),
                 ),
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final title = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'Safe Zones',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 2),
+            Text(
+              'Get alerts when your child leaves',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
+        );
+
+        final button = ElevatedButton.icon(
+          onPressed: () => _showZoneDialog(),
+          icon: const Icon(Icons.add),
+          label: const Text(
+            'Add Zone',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+
+        if (constraints.maxWidth < 340) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [title, const SizedBox(height: 12), button],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: title),
+            const SizedBox(width: 12),
+            button,
+          ],
         );
       },
     );
@@ -377,18 +475,7 @@ class _LocationScreenState extends State<LocationScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Expanded(child: Text('Safe Zones\nGet alerts when your child leaves', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-                ElevatedButton.icon(
-                  onPressed: () => _showZoneDialog(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Zone'),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                )
-              ],
-            ),
+            _buildHeader(),
             const SizedBox(height: 20),
             Expanded(
               child: ClipRRect(
@@ -405,41 +492,102 @@ class _LocationScreenState extends State<LocationScreen> {
                         onTap: (_, point) {
                           if (_isPickingLocation) {
                             setState(() => _isPickingLocation = false);
-                            _showZoneDialog(pickedLocation: point, zone: _editingZone, index: _editingIndex);
+                            _showZoneDialog(
+                              pickedLocation: point,
+                              zone: _editingZone,
+                              index: _editingIndex,
+                            );
                           }
                         },
                       ),
                       children: [
-                        TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.example.step_up', subdomains: ['a', 'b', 'c', 'd']),
-                        CircleLayer(
-                          circles: globalSafeZones.where((zone) => zone.active).map((zone) => CircleMarker(
-                            point: LatLng(zone.latitude, zone.longitude),
-                            color: Colors.green.withOpacity(0.3),
-                            borderStrokeWidth: 2,
-                            borderColor: Colors.green,
-                            useRadiusInMeter: true,
-                            radius: zone.radius.toDouble(),
-                          )).toList(),
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.example.step_up',
+                          subdomains: ['a', 'b', 'c', 'd'],
                         ),
-                        if (_currentP != null)
-                          MarkerLayer(markers: [Marker(point: _currentP!, width: 50, height: 50, child: const Icon(Icons.location_history, color: Colors.blue, size: 40))]),
+                        CircleLayer(
+                          circles: globalSafeZones.isEmpty 
+                              ? <CircleMarker>[] 
+                              : globalSafeZones
+                                  .where((zone) => zone.active)
+                                  .map(
+                                    (zone) => CircleMarker(
+                                      point: LatLng(zone.latitude, zone.longitude),
+                                      color: Colors.green.withValues(alpha: 0.3),
+                                      borderStrokeWidth: 2,
+                                      borderColor: Colors.green,
+                                      useRadiusInMeter: true,
+                                      radius: zone.radius.toDouble(),
+                                    ),
+                                  )
+                                  .toList(),
+                        ),
+                        MarkerLayer(
+                          markers: _currentP == null ? <Marker>[] : [
+                            Marker(
+                              point: _currentP!,
+                              width: 150,
+                              height: 90,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                      border: Border.all(color: Colors.blue, width: 1.5),
+                                    ),
+                                    child: FittedBox(
+                                      child: Text(
+                                        'Child\n${_currentP!.latitude.toStringAsFixed(4)}, ${_currentP!.longitude.toStringAsFixed(4)}',
+                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.person_pin_circle,
+                                    color: Colors.blue,
+                                    size: 40,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                     if (_isPickingLocation)
                       Positioned(
-                        top: 20, left: 20, right: 20,
+                        top: 20,
+                        left: 20,
+                        right: 20,
                         child: Column(
                           children: [
                             Container(
-                              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))]),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [AppColors.softShadow],
+                              ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 4,
+                                    ),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.search, color: AppColors.primary),
+                                        const Icon(
+                                          Icons.search,
+                                          color: AppColors.primary,
+                                        ),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: TextField(
@@ -447,31 +595,81 @@ class _LocationScreenState extends State<LocationScreen> {
                                             decoration: InputDecoration(
                                               hintText: 'Search location...',
                                               border: InputBorder.none,
-                                              suffixIcon: _searchController.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () => setState(() { _searchController.clear(); _searchResults = []; })) : null,
+                                              suffixIcon:
+                                                  _searchController
+                                                      .text
+                                                      .isNotEmpty
+                                                  ? IconButton(
+                                                      icon: const Icon(
+                                                        Icons.clear,
+                                                        size: 20,
+                                                      ),
+                                                      onPressed: () =>
+                                                          setState(() {
+                                                            _searchController
+                                                                .clear();
+                                                            _searchResults = [];
+                                                          }),
+                                                    )
+                                                  : null,
                                             ),
-                                            onSubmitted: (value) => _searchLocation(value),
+                                            onSubmitted: (value) =>
+                                                _searchLocation(value),
                                           ),
                                         ),
-                                        if (_isSearching) const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                                        if (_isSearching)
+                                          const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
                                       ],
                                     ),
                                   ),
-                                  if (_isSearching) const LinearProgressIndicator(minHeight: 2),
+                                  if (_isSearching)
+                                    const LinearProgressIndicator(minHeight: 2),
                                   if (_searchResults.isNotEmpty)
                                     ConstrainedBox(
-                                      constraints: const BoxConstraints(maxHeight: 250),
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 250,
+                                      ),
                                       child: ListView.separated(
-                                        shrinkWrap: true, padding: EdgeInsets.zero, itemCount: _searchResults.length,
-                                        separatorBuilder: (context, index) => const Divider(height: 1),
+                                        shrinkWrap: true,
+                                        padding: EdgeInsets.zero,
+                                        itemCount: _searchResults.length,
+                                        separatorBuilder: (context, index) =>
+                                            const Divider(height: 1),
                                         itemBuilder: (context, index) {
                                           final result = _searchResults[index];
                                           return ListTile(
-                                            leading: const Icon(Icons.location_on_outlined, size: 20),
-                                            title: Text(result['display_name'] ?? '', style: const TextStyle(fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                            leading: const Icon(
+                                              Icons.location_on_outlined,
+                                              size: 20,
+                                            ),
+                                            title: Text(
+                                              result['display_name'] ?? '',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                             onTap: () {
-                                              final lat = double.tryParse(result['lat']?.toString() ?? '');
-                                              final lon = double.tryParse(result['lon']?.toString() ?? '');
-                                              if (lat != null && lon != null) _moveToLocation(lat, lon, result['display_name'] ?? '');
+                                              final lat = double.tryParse(
+                                                result['lat']?.toString() ?? '',
+                                              );
+                                              final lon = double.tryParse(
+                                                result['lon']?.toString() ?? '',
+                                              );
+                                              if (lat != null && lon != null) {
+                                                _moveToLocation(
+                                                  lat,
+                                                  lon,
+                                                  result['display_name'] ?? '',
+                                                );
+                                              }
                                             },
                                           );
                                         },
@@ -482,18 +680,54 @@ class _LocationScreenState extends State<LocationScreen> {
                             ),
                             const SizedBox(height: 8),
                             Container(
-                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                               decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
-                               child: Row(
-                                 mainAxisSize: MainAxisSize.min,
-                                 children: [
-                                   const Icon(Icons.touch_app, color: Colors.white, size: 14),
-                                   const SizedBox(width: 8),
-                                   const Text('Tap map to select exact point', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                                   const SizedBox(width: 12),
-                                   GestureDetector(onTap: () { setState(() => _isPickingLocation = false); _showZoneDialog(zone: _editingZone, index: _editingIndex); }, child: const Icon(Icons.close, color: Colors.white, size: 16)),
-                                 ],
-                               ),
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.touch_app,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Expanded(
+                                    child: Text(
+                                      'Tap map to select exact point',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(
+                                        () => _isPickingLocation = false,
+                                      );
+                                      _showZoneDialog(
+                                        zone: _editingZone,
+                                        index: _editingIndex,
+                                      );
+                                    },
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -508,28 +742,105 @@ class _LocationScreenState extends State<LocationScreen> {
                 itemCount: globalSafeZones.length,
                 itemBuilder: (context, index) {
                   final zone = globalSafeZones[index];
-                  return Card(
+                  return Container(
                     margin: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [AppColors.softShadow],
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(children: [Icon(Icons.location_on, color: zone.active ? AppColors.primary : Colors.grey), const SizedBox(width: 8), Text(zone.name, style: const TextStyle(fontWeight: FontWeight.bold))]),
-                              Switch(value: zone.active, onChanged: (value) => setState(() => zone.active = value), activeColor: AppColors.primary),
+                              Icon(
+                                Icons.location_on,
+                                color: zone.active
+                                    ? AppColors.primary
+                                    : Colors.grey,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  zone.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Switch(
+                                value: zone.active,
+                                onChanged: (value) {
+                                  setState(() => zone.active = value);
+                                  saveSafeZones();
+                                  if (_currentP != null) {
+                                    _checkGeofence(_currentP!);
+                                  }
+                                },
+                                activeThumbColor: AppColors.primary,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 4),
                           Text('Radius: ${zone.radius}m'),
                           const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            runSpacing: 8,
                             children: [
-                              Row(children: [const Text('Send notifications'), Switch(value: zone.sendNotifications, onChanged: (value) => setState(() => zone.sendNotifications = value), activeColor: AppColors.primary)]),
-                              Row(children: [IconButton(onPressed: () => _showZoneDialog(zone: zone, index: index), icon: const Icon(Icons.edit)), IconButton(onPressed: () => setState(() => globalSafeZones.removeAt(index)), icon: const Icon(Icons.delete))]),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    'Send notifications',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Switch(
+                                    value: zone.sendNotifications,
+                                    onChanged: (value) {
+                                      setState(
+                                        () => zone.sendNotifications = value,
+                                      );
+                                      saveSafeZones();
+                                    },
+                                    activeThumbColor: AppColors.primary,
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    onPressed: () {
+                                      _showZoneDialog(zone: zone, index: index);
+                                    },
+                                    icon: const Icon(Icons.edit),
+                                  ),
+                                  IconButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        globalSafeZones.removeAt(index);
+                                      });
+                                      saveSafeZones();
+                                      if (_currentP != null) {
+                                        _checkGeofence(_currentP!);
+                                      }
+                                    },
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ],

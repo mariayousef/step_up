@@ -4,7 +4,7 @@ import 'package:step_up/app_colors.dart';
 import 'package:step_up/screens/LoginScreen.dart';
 import 'package:step_up/services/auth_service.dart';
 import '../models/register_request_model.dart';
-import '../services/user_local_service.dart';
+import 'package:animate_do/animate_do.dart';
 
 class ChildDataScreen extends StatefulWidget {
   final ParentModel parent;
@@ -20,7 +20,7 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
   final nameController = TextEditingController();
   final ageController = TextEditingController();
 
-  String selectedGender = 'Boy';
+  String selectedGender = 'male';
   bool isLoading = false;
 
   final AuthService authService = AuthService();
@@ -39,58 +39,46 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
       isLoading = true;
     });
 
-    ChildModel child = ChildModel(
-      name: nameController.text.trim(),
-      age: int.parse(ageController.text.trim()),
-      gender: selectedGender,
-    );
+    try {
+      final success = await authService.registerParent(
+        name: widget.parent.name,
+        email: widget.parent.email,
+        password: widget.parent.password,
+        phoneNumber: widget.parent.phoneNumber,
+      );
 
-    RegisterRequestModel request = RegisterRequestModel(
-      parent: widget.parent,
-      child: child,
-    );
+      if (!mounted) return;
 
-    final response = await authService.registerParentAndChild(request);
-
-
-    if (!mounted) return;
-
-    setState(() {
-      isLoading = false;
-    });
-
-    if (response != null) {
-
-      final data = response["data"];
-
-      final parent = data["parent"];
-      final child = data["child"];
-      final token = data["token"];
-
-      await UserLocalService.saveUserData({
-        "parentName": parent["name"],
-        "parentEmail": parent["email"],
-        "childName": child["name"],
-        "age": child["age"].toString(),
-        "gender": child["gender"],
-        "phoneNumber": parent["phone_number"],
+      setState(() {
+        isLoading = false;
       });
 
-      await UserLocalService.saveToken(token);
-
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false,
-      );
-    }
-    else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration failed, please try again'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (success) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration failed, please try again'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -118,27 +106,36 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Child Profile',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textMain,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'We’ll use this to personalize\nhealth & activity recommendations.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
+                    FadeInDown(
+                      duration: const Duration(milliseconds: 500),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Child Profile',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textMain,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'We’ll use this to personalize\nhealth & activity recommendations.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
 
                     // Card الأبيض
-                    Container(
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 200),
+                      child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
@@ -312,12 +309,14 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                         ),
                       ),
                     ),
+                    ),
 
                     const SizedBox(height: 24),
 
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 400),
+                      child: SizedBox(
+                        width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
@@ -340,14 +339,18 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
                         ),
                       ),
                     ),
+                    ),
 
                     const SizedBox(height: 8),
-                    const Text(
-                      "You can edit child details anytime from Profile.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 500),
+                      child: const Text(
+                        "You can edit child details anytime from Profile.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],

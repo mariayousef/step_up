@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "853737485309",
+    "project_id": "downcare-5e8e7",
+    "storage_bucket": "downcare-5e8e7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:853737485309:android:a1bc6f7b37a1639166df94",
+        "android_client_info": {
+          "package_name": "com.example.doctor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxIth9pHDsfgGZkA9YxKwOZvfX-66sKU8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:853737485309:android:fb2f7a36adcebf8866df94",
+        "android_client_info": {
+          "package_name": "com.example.step_up"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxIth9pHDsfgGZkA9YxKwOZvfX-66sKU8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

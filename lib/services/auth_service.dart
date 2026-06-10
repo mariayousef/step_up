@@ -1,91 +1,78 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'api_service.dart';
 import '../models/register_request_model.dart';
 
 class AuthService {
-  static const String baseUrl =
-      "https://claribel-inescapable-ingrid.ngrok-free.dev/api/auth";
-
-  /* ================= REGISTER ================= */
-
-  Future<Map<String, dynamic>?> registerParentAndChild(
-      RegisterRequestModel data) async {
-
-    final url = Uri.parse("$baseUrl/register");
-
+  // Parent Registration
+  Future<bool> registerParent({
+    required String name,
+    required String email,
+    required String password,
+    required String phoneNumber,
+  }) async {
     try {
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(data.toJson()),
-      );
+      final response = await ApiService.postJson('/api/auth/register', {
+        'name': name,
+        'email': email,
+        'password': password,
+        'phone_number': phoneNumber,
+      });
+      
+      // Save input data for profile
+      final inputData = {
+        'name': name,
+        'email': email,
+        'phone_number': phoneNumber,
+      };
+      await ApiService.saveUser(inputData);
 
-      print("STATUS CODE: ${response.statusCode}");
-      print("RESPONSE BODY: ${response.body}");
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return jsonDecode(response.body);
-      }
-
-      return null;
-
+      await _saveTokenIfPresent(response);
+      return true;
     } catch (e) {
-      print("REGISTER ERROR: $e");
-      return null;
+      print("AuthService Error: $e");
+      return false;
     }
   }
 
-  /* ================= LOGIN ================= */
-
+  // Parent Login
   Future<bool> login(String email, String password) async {
-    final url = Uri.parse("$baseUrl/login");
-
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-          "email": email,
-          "password": password,
-        }),
-      );
-
-      print("LOGIN STATUS: ${response.statusCode}");
-      print("LOGIN BODY: ${response.body}");
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final token = decoded["data"]["token"];
-
-        await _saveToken(token);
-
-        return true;
-      }
-
-      return false;
+      final response = await ApiService.postJson('/api/auth/login', {
+        'email': email,
+        'password': password,
+      });
+      
+      // Even if response is sparse, save the email as a fallback ID
+      await ApiService.saveUser({'email': email});
+      
+      await _saveTokenIfPresent(response);
+      return true;
     } catch (e) {
-      print("LOGIN ERROR: $e");
+      print("AuthService Login Error: $e");
       return false;
     }
   }
 
-  /* ================= TOKEN STORAGE ================= */
-
-  Future<void> _saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString("auth_token", token);
-  }
-
-  Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString("auth_token");
+  Future<void> _saveTokenIfPresent(dynamic response) async {
+    final token = ApiService.extractToken(response);
+    if (token != null) {
+      await ApiService.saveToken(token);
+    }
+    
+    // Deeper search for user data
+    if (response is Map) {
+      final userData = response['user'] ?? response['data'] ?? response['parent'] ?? response['doctor'];
+      if (userData is Map) {
+        print("AUTH_SERVICE: Saving user data from response: $userData");
+        await ApiService.saveUser(Map<String, dynamic>.from(userData));
+        
+        // Save user type if present
+        final type = userData['user_type'] ?? 'parent';
+        await ApiService.saveUserType(type);
+      }
+    }
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove("auth_token");
+    await ApiService.clearAll();
   }
 }

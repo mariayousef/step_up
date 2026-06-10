@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+
 import 'app_colors.dart';
-import 'LocationScreen.dart'; // تأكد إنك استوردت الشاشة دي
 
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
-  final Function(int) onTap;
+  final ValueChanged<int> onTap;
 
   const CustomBottomNavBar({
     super.key,
@@ -17,17 +17,12 @@ class CustomBottomNavBar extends StatelessWidget {
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
       currentIndex: currentIndex,
-      onTap: (index) {
-        onTap(index);
-      },
+      onTap: onTap,
       backgroundColor: Colors.white,
       selectedItemColor: AppColors.primary,
       unselectedItemColor: AppColors.textSecondary,
       items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_rounded),
-          label: 'Home',
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
         BottomNavigationBarItem(
           icon: Icon(Icons.location_on_rounded),
           label: 'Location',
@@ -35,6 +30,10 @@ class CustomBottomNavBar extends StatelessWidget {
         BottomNavigationBarItem(
           icon: Icon(Icons.trending_up_rounded),
           label: 'Progress',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.medical_services_rounded),
+          label: 'Doctors',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person_rounded),

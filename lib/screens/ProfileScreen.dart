@@ -277,7 +277,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
-            height: 48,
             child: ElevatedButton.icon(
               onPressed: _enterChildMode,
               icon: const Icon(Icons.child_care),

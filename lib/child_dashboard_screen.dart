@@ -1,28 +1,53 @@
+import 'package:animate_do/animate_do.dart';
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
-import 'body_training_screen.dart';
-import 'speech_training_screen.dart';
-import 'exit_child_mode_screen.dart';
 
-class ChildDashboardScreen extends StatelessWidget {
+import 'app_colors.dart';
+import 'package:step_up/screens/child/body_training_screen.dart';
+import 'exit_child_mode_screen.dart';
+import 'games_screen.dart';
+import 'speech_levels_screen.dart';
+import 'services/api_service.dart';
+
+class ChildDashboardScreen extends StatefulWidget {
   const ChildDashboardScreen({super.key});
 
-  Future<bool> _onWillPop(BuildContext context) async {
-    // بدل ما يخرج مباشرة، نفتح شاشة الخروج اللي فيها PIN
+  @override
+  State<ChildDashboardScreen> createState() => _ChildDashboardScreenState();
+}
+
+class _ChildDashboardScreenState extends State<ChildDashboardScreen> {
+  String _childName = 'Buddy';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChildName();
+  }
+
+  Future<void> _loadChildName() async {
+    final user = await ApiService.getUser();
+    if (user != null && user['child_name'] != null) {
+      setState(() {
+        _childName = user['child_name'];
+      });
+    }
+  }
+
+  void _openExitScreen(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const ExitChildModeScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const ExitChildModeScreen()),
     );
-    // نرجّع false عشان ما يعملش pop للشاشة دي
-    return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () => _onWillPop(context),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _openExitScreen(context);
+      },
       child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(
@@ -33,102 +58,37 @@ class ChildDashboardScreen extends StatelessWidget {
             ),
           ),
           child: SafeArea(
-            child: Padding(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Icon(Icons.star_rounded,
-                          color: Colors.amber, size: 26),
-                      Column(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 32,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Column(
                         children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor:
-                            AppColors.primary.withOpacity(0.15),
-                            child: const Icon(Icons.person,
-                                color: AppColors.primary, size: 34),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Hi Ahmed! 👋',
-                            style: TextStyle(
-                              color: AppColors.textMain,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                          FadeInDown(child: _buildHeader()),
+                          const SizedBox(height: 40),
+                          ..._buildTrainingActions(context),
+                          const Spacer(),
+                          const SizedBox(height: 24),
+                          FadeInUp(
+                            delay: const Duration(milliseconds: 400),
+                            child: _ExitButton(
+                              onPressed: () => _openExitScreen(context),
                             ),
                           ),
                         ],
                       ),
-                      const Icon(Icons.favorite_border,
-                          color: Colors.pinkAccent, size: 26),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-
-                  // زر تمارين الجسم
-                  _buildTrainingButton(
-                    context: context,
-                    title: 'Body Training',
-                    icon: Icons.accessibility_new,
-                    color: const Color(0xFF00C471),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const BodyTrainingScreen(),
-                      ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  // زر تمارين النطق
-                  _buildTrainingButton(
-                    context: context,
-                    title: 'Speech Training',
-                    icon: Icons.record_voice_over,
-                    color: const Color(0xFF007BFF),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SpeechTrainingScreen(),
-                      ),
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // زر الخروج
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF6B6B),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(26),
-                        ),
-                      ),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ExitChildModeScreen(),
-                        ),
-                      ),
-                      child: const Text(
-                        'Exit child mode',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -136,37 +96,203 @@ class ChildDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTrainingButton({
-    required BuildContext context,
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      height: 90,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Icon(Icons.star_rounded, color: Colors.amber, size: 36),
+        Flexible(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 36,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                child: const Icon(
+                  Icons.person,
+                  color: AppColors.primary,
+                  size: 42,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Hi $_childName!',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textMain,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
         ),
-        onPressed: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        const Icon(Icons.favorite_rounded, color: Colors.pinkAccent, size: 36),
+      ],
+    );
+  }
+
+  List<Widget> _buildTrainingActions(BuildContext context) {
+    final actions = [
+      _TrainingAction(
+        title: 'Body Training',
+        icon: Icons.accessibility_new_rounded,
+        color: const Color(0xFF00C471),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const BodyTrainingScreen()),
+        ),
+      ),
+      _TrainingAction(
+        title: 'Speech Training',
+        icon: Icons.record_voice_over_rounded,
+        color: const Color(0xFF007BFF),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SpeechLevelsScreen()),
+        ),
+      ),
+      _TrainingAction(
+        title: 'Games',
+        icon: Icons.videogame_asset_rounded,
+        color: const Color(0xFFFF9800),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const GamesScreen()),
+        ),
+      ),
+    ];
+
+    return [
+      for (var index = 0; index < actions.length; index++) ...[
+        FadeInUp(
+          delay: Duration(milliseconds: 100 * (index + 1)),
+          child: _TrainingButton(action: actions[index]),
+        ),
+        if (index != actions.length - 1) const SizedBox(height: 20),
+      ],
+    ];
+  }
+}
+
+class _TrainingAction {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _TrainingAction({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+}
+
+class _TrainingButton extends StatelessWidget {
+  final _TrainingAction action;
+
+  const _TrainingButton({required this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: action.onTap,
+      child: Container(
+        width: double.infinity,
+        height: 110,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [action.color.withValues(alpha: 0.8), action.color],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: action.color.withValues(alpha: 0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Stack(
           children: [
-            Icon(icon, color: Colors.white, size: 28),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            Positioned(
+              right: -20,
+              top: -20,
+              child: CircleAvatar(
+                radius: 60,
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(action.icon, color: Colors.white, size: 36),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Text(
+                      action.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 24),
+                ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExitButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _ExitButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 64,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFFF6B6B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          elevation: 5,
+          shadowColor: const Color(0xFFFF6B6B).withValues(alpha: 0.5),
+        ),
+        onPressed: onPressed,
+        child: const Text(
+          'Exit Child Mode',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
         ),
       ),
     );

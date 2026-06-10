@@ -1,0 +1,182 @@
+import 'dart:io';
+import 'dart:convert';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import '../models/speech_level_content.dart';
+import 'api_service.dart';
+
+class SpeechService {
+  static const String baseUrl = 'https://claribel-inescapable-ingrid.ngrok-free.dev/api';
+  final Dio _dio = Dio();
+
+  SpeechService() {
+    _dio.options.baseUrl = baseUrl;
+    _dio.options.headers = {
+      'Accept': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    };
+
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        final token = await ApiService.getToken();
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+        return handler.next(options);
+      },
+    ));
+  }
+
+  Future<List<SpeechLevelContent>> getLevelContent(int levelId) async {
+    try {
+      final response = await _dio.get('/level/$levelId');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        List<dynamic> listData = [];
+        
+        if (data is Map) {
+          if (data['data'] != null && data['data'] is Map && data['data']['letters'] != null) {
+            listData = data['data']['letters'];
+          } else if (data['letters'] != null) {
+            listData = data['letters'];
+          } else if (data['data'] != null && data['data'] is List) {
+            listData = data['data'];
+          } else {
+            listData = [data];
+          }
+        } else if (data is List) {
+          listData = data;
+        }
+
+        return listData.map((json) => SpeechLevelContent.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load level content: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching level content: $e');
+      return [];
+    }
+  }
+
+  Future<String?> downloadReferenceAudio(String url) async {
+    try {
+      final directory = await getTemporaryDirectory();
+      var filename = url.split('/').last;
+      
+      // Remove query parameters if present
+      if (filename.contains('?')) {
+        filename = filename.split('?').first;
+      }
+      
+      // Ensure it has an extension for Laravel validation
+      if (!filename.contains('.')) {
+        filename += '.mp3';
+      }
+
+      final path = '${directory.path}/ref_$filename';
+      
+      await _dio.download(url, path);
+      return path;
+    } catch (e) {
+      print('Error downloading reference audio: $e');
+      return null;
+    }
+  }
+
+  Future<SpeechScoreResponse> submitSpeechScore({
+    required String referenceAudioPath,
+    required String childAudioPath,
+  }) async {
+    try {
+      final token = await ApiService.getToken();
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/speech/score'),
+      );
+
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.headers['Accept'] = 'application/json';
+
+      // Attach reference file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'reference',
+          referenceAudioPath,
+          contentType: MediaType('audio', 'mpeg'),
+        ),
+      );
+
+      // Attach child file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'child',
+          childAudioPath,
+          contentType: MediaType('audio', 'wav'),
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        var data = jsonDecode(response.body);
+        final resultData = data['data'] ?? data;
+        return SpeechScoreResponse.fromJson(resultData);
+      } else {
+        print('Backend Error: ${response.statusCode} - ${response.body}');
+        String errorMessage = 'Failed to get score: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['errors'] != null) {
+            errorMessage = errorData['errors'].toString();
+          } else if (errorData['message'] != null) {
+            errorMessage = errorData['message'].toString();
+          }
+        } catch (_) {}
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      if (e is DioException) {
+        throw Exception('API Error: ${e.response?.data ?? e.message}');
+      }
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
+    }
+  }
+}
+
+class SpeechScoreResponse {
+  final double score;
+  final String label;
+  final double similarity;
+  final double refDuration;
+  final double childDuration;
+
+  SpeechScoreResponse({
+    required this.score,
+    required this.label,
+    required this.similarity,
+    required this.refDuration,
+    required this.childDuration,
+  });
+
+  factory SpeechScoreResponse.fromJson(Map<String, dynamic> json) {
+    return SpeechScoreResponse(
+      score: _toDouble(json['score']),
+      label: json['label']?.toString() ?? '',
+      similarity: _toDouble(json['similarity']),
+      refDuration: _toDouble(json['ref_duration']),
+      childDuration: _toDouble(json['child_duration']),
+    );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
+  }
+}
