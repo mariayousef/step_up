@@ -3,6 +3,7 @@ import '../SettingsScreen.dart';
 import '../pin_storage.dart';
 import '../child_dashboard_screen.dart';
 import '../app_colors.dart';
+import '../services/user_local_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -12,15 +13,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  Map<String, dynamic> parentInfo = {'name': 'Mohamed Ali'};
-  Map<String, dynamic> childInfo = {
-    'childName': 'Ahmed Mohamed',
-    'age': '5 years',
-    'gender': 'Male',
-    'phoneNumber': '+1234567890',
-    'caseInformation':
-    'Autism Spectrum Disorder. The child shows strengths in visual learning.',
-  };
+  Map<String, dynamic> parentInfo = {};
+  Map<String, dynamic> childInfo = {};
 
   bool _isEditMode = false;
   final Map<String, TextEditingController> _controllers = {};
@@ -28,14 +22,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    parentInfo.forEach(
-          (key, value) =>
-      _controllers[key] = TextEditingController(text: value.toString()),
-    );
-    childInfo.forEach(
-          (key, value) =>
-      _controllers[key] = TextEditingController(text: value.toString()),
-    );
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final userData = await UserLocalService.getUserData();
+
+    if (userData == null) return;
+
+    setState(() {
+      parentInfo = {
+        'name': userData["parentName"] ?? '',
+      };
+
+      childInfo = {
+        'childName': userData["childName"] ?? '',
+        'age': userData["age"] ?? '',
+        'gender': userData["gender"] ?? '',
+        'phoneNumber': userData["phoneNumber"] ?? '',
+        'caseInformation': '',
+      };
+
+      parentInfo.forEach(
+            (key, value) =>
+        _controllers[key] = TextEditingController(text: value.toString()),
+      );
+
+      childInfo.forEach(
+            (key, value) =>
+        _controllers[key] = TextEditingController(text: value.toString()),
+      );
+    });
   }
 
   @override
@@ -53,7 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  void _saveChanges() {
+  void _saveChanges() async {
     setState(() {
       parentInfo.forEach((key, _) {
         parentInfo[key] = _controllers[key]!.text;
@@ -61,6 +78,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       childInfo.forEach((key, _) {
         childInfo[key] = _controllers[key]!.text;
       });
+    });
+
+    await UserLocalService.saveUserData({
+      "parentName": parentInfo["name"],
+      "childName": childInfo["childName"],
+      "age": childInfo["age"],
+      "gender": childInfo["gender"],
+      "phoneNumber": childInfo["phoneNumber"],
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -214,16 +239,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
-          // Avatar
           const CircleAvatar(
             radius: 38,
             backgroundColor: AppColors.primary,
             child: Icon(Icons.person, color: Colors.white, size: 40),
           ),
-
           const SizedBox(height: 14),
-
-          // Parent name
           _isEditMode
               ? TextFormField(
             controller: _controllers['name'],
@@ -238,14 +259,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           )
               : Text(
-            parentInfo['name']!,
+            parentInfo['name'] ?? '',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: AppColors.textMain,
             ),
           ),
-
           const SizedBox(height: 4),
           const Text(
             'Parent Account',
@@ -254,10 +274,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               fontSize: 13,
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // Enter Child Mode
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -280,7 +297,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
 
   Widget _buildChildInfoSection() {
     return Card(
@@ -311,8 +327,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     side: BorderSide(
                       color: AppColors.primary.withOpacity(0.7),
                     ),
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 8),
                     textStyle: const TextStyle(fontSize: 13),
                   ),
                   child: Text(_isEditMode ? 'Save' : 'Edit'),
