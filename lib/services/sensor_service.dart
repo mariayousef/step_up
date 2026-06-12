@@ -49,7 +49,7 @@ class SensorReadingsController {
     if (_timer != null) return;
 
     fetchLatest();
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       fetchLatest();
     });
   }
