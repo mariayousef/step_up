@@ -34,7 +34,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   
   bool _hasUnreadMessages = false;
   Map<String, int> _unreadCounts = {}; // parentId -> unreadCount
-  final DateTime _appOpenTime = DateTime.now();
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
   final List<StreamSubscription> _chatSubscriptions = [];
 
@@ -132,7 +131,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         if (_currentDoctorId.isEmpty && list.isNotEmpty) {
           final first = list[0];
           // Try to get doctor id from the first appointment object
-          final discoveredId = first.doctor?.id?.toString();
+          final discoveredId = first.doctor?.id;
           if (discoveredId != null && discoveredId.isNotEmpty) {
             setState(() => _currentDoctorId = discoveredId);
             await ApiService.saveUser({'id': discoveredId, 'name': _doctorName});
