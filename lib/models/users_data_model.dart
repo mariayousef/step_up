@@ -31,16 +31,16 @@ class UsersData {
 
   factory UsersData.fromJson(Map<String, dynamic> json) {
     return UsersData(
-      parents: (json['parents'] as List?)
-              ?.map((e) => ParentData.fromJson(e))
+      parents: (json['parents'] as List<dynamic>?)
+              ?.map((e) => ParentData.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      children: (json['children'] as List?)
-              ?.map((e) => ChildData.fromJson(e))
+      children: (json['children'] as List<dynamic>?)
+              ?.map((e) => ChildData.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      doctors: (json['doctors'] as List?)
-              ?.map((e) => DoctorData.fromJson(e))
+      doctors: (json['doctors'] as List<dynamic>?)
+              ?.map((e) => DoctorData.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
     );
@@ -62,10 +62,10 @@ class ParentData {
 
   factory ParentData.fromJson(Map<String, dynamic> json) {
     return ParentData(
-      id: json['id'] ?? 0,
-      name: json['name'] ?? '',
-      email: json['email'] ?? '',
-      phoneNumber: json['phone_number'] ?? '',
+      id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      name: json['name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      phoneNumber: json['phone_number']?.toString() ?? '',
     );
   }
 }
@@ -87,11 +87,11 @@ class ChildData {
 
   factory ChildData.fromJson(Map<String, dynamic> json) {
     return ChildData(
-      id: json['id'] ?? 0,
-      name: json['name'] ?? '',
-      age: json['age'] ?? 0,
-      gender: json['gender'] ?? '',
-      parentId: json['parent_id'] ?? 0,
+      id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      name: json['name']?.toString() ?? '',
+      age: int.tryParse(json['age']?.toString() ?? '') ?? 0,
+      gender: json['gender']?.toString() ?? '',
+      parentId: int.tryParse(json['parent_id']?.toString() ?? '') ?? 0,
     );
   }
 }
@@ -111,10 +111,10 @@ class DoctorData {
 
   factory DoctorData.fromJson(Map<String, dynamic> json) {
     return DoctorData(
-      id: json['id'] ?? 0,
-      name: json['name'] ?? '',
-      email: json['email'] ?? '',
-      phoneNumber: json['phone_number'] ?? '',
+      id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      name: json['name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      phoneNumber: json['phone_number']?.toString() ?? '',
     );
   }
 }

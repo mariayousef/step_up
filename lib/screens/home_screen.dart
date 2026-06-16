@@ -4,7 +4,7 @@ import 'package:step_up/development_progress_card.dart';
 import 'package:step_up/bottom_nav_bar.dart';
 import 'package:step_up/LocationScreen.dart';
 import 'package:step_up/ProgressScreen.dart';
-import 'ProfileScreen.dart';
+import 'package:step_up/screens/parent/parent_profile_screen.dart';
 import 'package:step_up/child_dashboard_screen.dart';
 import 'package:step_up/pin_storage.dart';
 import 'package:step_up/safe_zone_model.dart';
@@ -196,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const LocationScreen(),
             const ProgressScreen(),
             const DoctorsListScreen(),
-            const ProfileScreen(),
+            const ParentProfileScreen(),
           ],
         ),
         bottomNavigationBar: CustomBottomNavBar(

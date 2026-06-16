@@ -6,7 +6,19 @@ class UsersDataService {
 
   static Future<UsersDataResponse> fetchUsersData() async {
     try {
-      final response = await ApiService.getJson(_endpoint, authorized: true);
+      final token = await ApiService.getToken();
+      final user = await ApiService.getUser();
+      final userId = user != null ? user['id'] : null;
+
+      String url = _endpoint;
+      
+      if (userId != null) {
+        url += '?id=$userId&token=$token';
+      } else if (token != null) {
+        url += '?token=$token';
+      }
+
+      final response = await ApiService.getJson(url, authorized: true);
       return UsersDataResponse.fromJson(response);
     } catch (e) {
       throw Exception('Failed to fetch users data: $e');

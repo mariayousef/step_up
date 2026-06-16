@@ -3,6 +3,10 @@ import 'package:step_up/screens/doctor/doctor_login_screen.dart';
 import 'package:step_up/screens/doctor/doctor_settings_screen.dart';
 import 'package:step_up/services/api_service.dart';
 
+import 'package:step_up/app_colors.dart';
+
+import 'package:step_up/services/users_data_service.dart';
+
 class DoctorProfileScreen extends StatefulWidget {
   const DoctorProfileScreen({super.key});
 
@@ -12,10 +16,11 @@ class DoctorProfileScreen extends StatefulWidget {
 
 class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   // بيانات أساسية
-  String _doctorName = 'Loading...';
-  String _specialty = '...';
-  String _clinicInfo = '...';
-  String _email = '...';
+  String _doctorName = '';
+  String _specialty = '';
+  String _clinicInfo = '';
+  String _email = '';
+  String _phone = '';
 
   @override
   void initState() {
@@ -23,26 +28,24 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
     _loadProfileData();
   }
 
-  // تحميل البيانات لو كانت محفوظة مسبقاً (Local Storage)
+  // تحميل البيانات من الباك اند
   Future<void> _loadProfileData() async {
-    final userData = await ApiService.getUser();
-    print("DOCTOR_PROFILE: Loaded Data: $userData");
-
-    if (userData != null) {
-      setState(() {
-        _doctorName = userData['name'] ?? userData['full_name'] ?? 'Doctor Name';
-        _specialty = userData['specialization'] ?? userData['spec'] ?? userData['specialty'] ?? 'Specialist';
-        _email = userData['email'] ?? 'No email';
-        
-        final clinics = userData['clinics'];
-        if (clinics is List && clinics.isNotEmpty) {
-          _clinicInfo = clinics.join(', ');
-        } else if (clinics != null) {
-          _clinicInfo = clinics.toString();
-        } else {
-          _clinicInfo = 'No clinics registered';
-        }
-      });
+    try {
+      final response = await UsersDataService.fetchUsersData();
+      final doctors = response.data.doctors;
+      
+      if (mounted && doctors.isNotEmpty) {
+        final doctor = doctors.first;
+        setState(() {
+          _doctorName = doctor.name.isNotEmpty ? doctor.name : '';
+          _email = doctor.email.isNotEmpty ? doctor.email : '';
+          _phone = doctor.phoneNumber;
+          _specialty = 'Specialist'; // Not currently in API response
+          _clinicInfo = 'Step Up Clinic'; // Not currently in API response
+        });
+      }
+    } catch (e) {
+      print("Error fetching doctor data: $e");
     }
   }
 
@@ -90,7 +93,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile Updated Successfully')));
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00796B), padding: const EdgeInsets.symmetric(vertical: 16)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, padding: const EdgeInsets.symmetric(vertical: 16)),
                   child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontSize: 16)),
                 ),
                 const SizedBox(height: 24),
@@ -117,7 +120,7 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(title: const Text('English'), leading: const Icon(Icons.check, color: Color(0xFF00796B)), onTap:() => Navigator.pop(context)),
+            ListTile(title: const Text('English'), leading: const Icon(Icons.check, color: AppColors.primary), onTap:() => Navigator.pop(context)),
             ListTile(title: const Text('العربية'), onTap:() => Navigator.pop(context)),
           ],
         ),
@@ -154,89 +157,130 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('My Profile'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 1,
+        title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        backgroundColor: AppColors.primary,
+        centerTitle: true,
+        elevation: 0,
       ),
-      body: ListView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildProfileHeader(),
+            const SizedBox(height: 24),
+            _buildAccountSection(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
         children: [
-          Center(
-            child: Stack(
-              children: [
-                const CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Color(0xFFE0F2F1),
-                  child: Icon(Icons.person, size: 50, color: Color(0xFF00796B)),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: InkWell(
-                    onTap: _showEditSheet,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(color: Color(0xFF00796B), shape: BoxShape.circle),
-                      child: const Icon(Icons.edit, color: Colors.white, size: 16),
-                    ),
+          Stack(
+            children: [
+              const CircleAvatar(
+                radius: 40,
+                backgroundColor: AppColors.primary,
+                child: Icon(Icons.person, color: Colors.white, size: 45),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: InkWell(
+                  onTap: _showEditSheet,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(color: AppColors.secondary, shape: BoxShape.circle),
+                    child: const Icon(Icons.edit, color: Colors.white, size: 16),
                   ),
-                )
-              ],
-            ),
+                ),
+              )
+            ],
           ),
           const SizedBox(height: 16),
-          Center(child: Text(_doctorName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
-          Center(child: Text('$_specialty | $_clinicInfo', style: const TextStyle(color: Colors.grey))),
-          Center(child: Text(_email, style: const TextStyle(color: Colors.grey, fontSize: 13))),
-          
-          const SizedBox(height: 32),
-          
-          const Text('Account', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.person_outline, color: Color(0xFF00796B)), 
-                  title: const Text('Edit Profile Data'), 
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: _showEditSheet,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.settings, color: Color(0xFF00796B)), 
-                  title: const Text('Settings'), 
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => _showSettingsDialog(context),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.language, color: Color(0xFF00796B)), 
-                  title: const Text('Language'), 
-                  trailing: const Text('English', style: TextStyle(color: Colors.grey)),
-                  onTap: _showLanguageDialog,
-                ),
-              ],
+          Text(
+            _doctorName,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMain,
             ),
           ),
-          
-          const SizedBox(height: 30),
-          
-          ElevatedButton.icon(
-            onPressed: () => _confirmLogout(context),
-            icon: const Icon(Icons.logout),
-            label: const Text('Log Out'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade50,
-              foregroundColor: Colors.red,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+          const SizedBox(height: 6),
+          Text(
+            '$_specialty | $_clinicInfo',
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _email,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAccountSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.person_outline, color: AppColors.primary), 
+              title: const Text('Edit Profile Data', style: TextStyle(color: AppColors.textMain, fontWeight: FontWeight.w600)), 
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+              onTap: _showEditSheet,
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined, color: AppColors.primary), 
+              title: const Text('Settings', style: TextStyle(color: AppColors.textMain, fontWeight: FontWeight.w600)), 
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+              onTap: () => _showSettingsDialog(context),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.language_outlined, color: AppColors.primary), 
+              title: const Text('Language', style: TextStyle(color: AppColors.textMain, fontWeight: FontWeight.w600)), 
+              trailing: const Text('English', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+              onTap: _showLanguageDialog,
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent), 
+              title: const Text('Log Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)), 
+              onTap: () => _confirmLogout(context),
+            ),
+          ],
+        ),
       ),
     );
   }

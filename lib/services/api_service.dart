@@ -36,8 +36,20 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return decoded;
     } else {
-      final message = (decoded is Map) ? (decoded['message'] ?? decoded['error'] ?? 'Unknown Error') : 'Server Error';
-      throw ApiException(message.toString(), response.statusCode);
+      String message = 'Server Error';
+      if (decoded is Map) {
+        message = decoded['message']?.toString() ?? decoded['error']?.toString() ?? 'Unknown Error';
+        if (decoded.containsKey('errors')) {
+          final errors = decoded['errors'];
+          if (errors is Map) {
+            final errorMessages = errors.values.expand((v) => v is List ? v : [v]).join('\n');
+            if (errorMessages.isNotEmpty) {
+              message = '$message\n$errorMessages';
+            }
+          }
+        }
+      }
+      throw ApiException(message, response.statusCode);
     }
   }
 

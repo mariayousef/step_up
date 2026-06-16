@@ -22,12 +22,13 @@ class ProgressService {
       var progress = ProgressData.fromJson(data);
 
       // --- MOCK DATA FOR DOCTOR IF API RETURNS 0 ---
+      // Hardcoded to match the parent's view as requested for prototype
       if (parentId != null && progress.overallProgress == 0) {
         progress = const ProgressData(
-          overallProgress: 84,
-          speechProgress: 82,
-          bodyProgress: 85,
-          message: "Excellent progress this week!",
+          overallProgress: 17,
+          speechProgress: 25,
+          bodyProgress: 8,
+          message: "Keep training | you can improve",
           period: 'week',
           chart: [],
         );
@@ -43,10 +44,10 @@ class ProgressService {
       // If the API call fails, still return the mock data if requested for a specific parent
       if (parentId != null && parentId.isNotEmpty) {
         return const ProgressData(
-          overallProgress: 84,
-          speechProgress: 82,
-          bodyProgress: 85,
-          message: "Excellent progress this week!",
+          overallProgress: 17,
+          speechProgress: 25,
+          bodyProgress: 8,
+          message: "Keep training | you can improve",
           period: 'week',
           chart: [],
         );
@@ -84,7 +85,7 @@ class ProgressService {
       );
 
       // Refresh global weekly progress so the dashboard updates automatically
-      getProgress('week').catchError((_) => null);
+      getProgress('week').catchError((_) => ProgressData.empty);
 
       final data = response['data'] as Map<String, dynamic>?;
       return (data?['score'] as num?)?.toInt() ?? 0;

@@ -11,6 +11,7 @@ import 'package:step_up/screens/doctor/tools/note_screen.dart';
 import 'package:step_up/services/doctor_service.dart';
 import 'package:step_up/models/appointment_model.dart';
 import 'package:step_up/services/api_service.dart';
+import 'package:step_up/services/users_data_service.dart';
 import 'package:step_up/services/chat_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -65,17 +66,43 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   }
 
   Future<void> _loadDoctorData() async {
+    // 1. Try local storage first for immediate display
     final user = await ApiService.getUser();
     if (user != null && mounted) {
       setState(() {
         _currentDoctorId = user['id']?.toString() ?? 
                            user['phone_number']?.toString() ?? 
                            '';
-        _doctorName = user['name'] ?? user['full_name'] ?? 'Doctor';
+        if (user['name'] != null && user['name'].toString().isNotEmpty) {
+          _doctorName = user['name'];
+        } else if (user['full_name'] != null && user['full_name'].toString().isNotEmpty) {
+          _doctorName = user['full_name'];
+        }
       });
       if (_currentDoctorId.isNotEmpty) {
         _setupMessageListeners();
       }
+    }
+
+    // 2. Fetch fresh real data from backend
+    try {
+      final response = await UsersDataService.fetchUsersData();
+      final doctors = response.data.doctors;
+      if (mounted && doctors.isNotEmpty) {
+        final doctor = doctors.first;
+        if (doctor.name.isNotEmpty) {
+          setState(() {
+            _doctorName = doctor.name;
+          });
+          // Update local storage so it's correct next time
+          if (user != null) {
+            user['name'] = doctor.name;
+            await ApiService.saveUser(user);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Could not fetch fresh doctor data: $e");
     }
   }
 

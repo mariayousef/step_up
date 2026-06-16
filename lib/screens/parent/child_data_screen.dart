@@ -45,6 +45,9 @@ class _ChildDataScreenState extends State<ChildDataScreen> {
         email: widget.parent.email,
         password: widget.parent.password,
         phoneNumber: widget.parent.phoneNumber,
+        childName: nameController.text.trim(),
+        childAge: int.tryParse(ageController.text.trim()) ?? 0,
+        childGender: selectedGender,
       );
 
       if (!mounted) return;

@@ -94,7 +94,10 @@ class _MainScreenState extends State<MainScreen> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class ProgressScreen extends StatefulWidget {
-  const ProgressScreen({super.key});
+  final String? parentId;
+  final bool isEmbedded;
+
+  const ProgressScreen({super.key, this.parentId, this.isEmbedded = false});
 
   @override
   State<ProgressScreen> createState() => _ProgressScreenState();
@@ -136,7 +139,7 @@ class _ProgressScreenState extends State<ProgressScreen>
       _error = null;
     });
     try {
-      final data = await ProgressService.getProgress(_selectedPeriod);
+      final data = await ProgressService.getProgress(_selectedPeriod, parentId: widget.parentId);
       if (!mounted) return;
       setState(() {
         _data = data;
@@ -160,46 +163,59 @@ class _ProgressScreenState extends State<ProgressScreen>
 
   @override
   Widget build(BuildContext context) {
+    Widget content = _isLoading
+        ? const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  color: AppColors.primary,
+                  strokeWidth: 4,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Loading progress...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          )
+        : _error != null
+            ? _buildError()
+            : ListenableBuilder(
+                listenable: _animController,
+                builder: (context, _) => _buildContent(),
+              );
+
+    if (widget.isEmbedded) {
+      return content;
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFE7F0FF),
+      appBar: Navigator.canPop(context) 
+          ? AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              iconTheme: const IconThemeData(color: AppColors.textMain),
+            )
+          : null,
       body: SafeArea(
-        child: _isLoading
-            ? const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 4,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Loading progress...',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : _error != null
-                ? _buildError()
-                : RefreshIndicator(
-                    onRefresh: _fetchProgress,
-                    color: AppColors.primary,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics(),
-                      ),
-                      padding: const EdgeInsets.all(20),
-                      child: ListenableBuilder(
-                        listenable: _animController,
-                        builder: (context, _) => _buildContent(),
-                      ),
-                    ),
-                  ),
+        child: RefreshIndicator(
+          onRefresh: _fetchProgress,
+          color: AppColors.primary,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: content,
+          ),
+        ),
       ),
     );
   }

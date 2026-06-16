@@ -8,28 +8,50 @@ class AuthService {
     required String email,
     required String password,
     required String phoneNumber,
+    String? childName,
+    int? childAge,
+    String? childGender,
   }) async {
     try {
-      final response = await ApiService.postJson('/api/auth/register', {
-        'name': name,
-        'email': email,
-        'password': password,
-        'phone_number': phoneNumber,
-      });
+      final parentModel = ParentModel(
+        name: name,
+        email: email,
+        password: password,
+        phoneNumber: phoneNumber,
+      );
+
+      final childModel = ChildModel(
+        name: childName ?? 'Unknown',
+        age: childAge ?? 0,
+        gender: childGender ?? 'male',
+      );
+
+      final requestModel = RegisterRequestModel(parent: parentModel, child: childModel);
+
+      final response = await ApiService.postJson(
+        '/api/auth/register',
+        requestModel.toJson(),
+      );
       
       // Save input data for profile
       final inputData = {
         'name': name,
         'email': email,
         'phone_number': phoneNumber,
+        'child_name': childName,
+        'child_age': childAge,
+        'child_gender': childGender,
       };
       await ApiService.saveUser(inputData);
 
       await _saveTokenIfPresent(response);
       return true;
+    } on ApiException catch (e) {
+      print("AuthService ApiException: ${e.message}");
+      throw e;
     } catch (e) {
       print("AuthService Error: $e");
-      return false;
+      throw Exception(e.toString());
     }
   }
 

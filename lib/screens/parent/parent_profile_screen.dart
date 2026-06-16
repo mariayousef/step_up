@@ -6,6 +6,8 @@ import 'package:step_up/app_colors.dart';
 import 'package:step_up/services/api_service.dart';
 import 'package:step_up/services/auth_service.dart';
 
+import 'package:step_up/services/users_data_service.dart';
+
 class ParentProfileScreen extends StatefulWidget {
   const ParentProfileScreen({super.key});
 
@@ -14,13 +16,15 @@ class ParentProfileScreen extends StatefulWidget {
 }
 
 class _ParentProfileScreenState extends State<ParentProfileScreen> {
-  Map<String, dynamic> parentInfo = {'name': 'Loading...'};
+  Map<String, dynamic> parentInfo = {
+    'name': '',
+    'phone': '',
+  };
   Map<String, dynamic> childInfo = {
-    'childName': 'Loading...',
-    'age': '...',
-    'gender': '...',
-    'phoneNumber': '...',
-    'caseInformation': 'No information provided.',
+    'childName': '',
+    'age': '',
+    'gender': '',
+    'caseInformation': '',
   };
 
   bool _isEditMode = false;
@@ -35,38 +39,43 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
     _controllers['childName'] = TextEditingController();
     _controllers['age'] = TextEditingController();
     _controllers['gender'] = TextEditingController();
-    _controllers['phoneNumber'] = TextEditingController();
     _controllers['caseInformation'] = TextEditingController();
     
     _loadUserInfo();
   }
 
   Future<void> _loadUserInfo() async {
-    final userData = await ApiService.getUser();
-    print("FINAL_DEBUG_PROFILE: $userData");
-    
-    if (userData != null) {
+    try {
+      final response = await UsersDataService.fetchUsersData();
+      final parents = response.data.parents;
+      final children = response.data.children;
+
+      if (!mounted) return;
+
       setState(() {
-        // Parent Info
-        parentInfo['name'] = userData['name'] ?? userData['full_name'] ?? userData['parent_name'] ?? 'User';
-        parentInfo['phone'] = userData['phone_number'] ?? userData['phone'] ?? 'Parent Account';
-        
-        // Child Info
-        childInfo['childName'] = userData['child_name'] ?? userData['name'] ?? 'Not set';
-        childInfo['age'] = (userData['child_age'] ?? userData['age'])?.toString() ?? 'Not set';
-        childInfo['gender'] = userData['child_gender'] ?? userData['gender'] ?? 'Not set';
-        childInfo['phoneNumber'] = userData['phone_number'] ?? userData['phone'] ?? 'Not set';
-        childInfo['caseInformation'] = userData['case_information'] ?? 'No information provided.';
-        
+        if (parents.isNotEmpty) {
+          final parent = parents.first;
+          parentInfo['name'] = parent.name.isNotEmpty ? parent.name : '';
+          parentInfo['phone'] = parent.phoneNumber;
+        }
+
+        if (children.isNotEmpty) {
+          final child = children.first;
+          childInfo['childName'] = child.name.isNotEmpty ? child.name : '';
+          childInfo['age'] = child.age.toString();
+          childInfo['gender'] = child.gender.isNotEmpty ? child.gender : '';
+        }
+
         // Update all controllers
         _controllers['name']?.text = parentInfo['name'];
         _controllers['phone']?.text = parentInfo['phone'];
         _controllers['childName']?.text = childInfo['childName'];
         _controllers['age']?.text = childInfo['age'];
         _controllers['gender']?.text = childInfo['gender'];
-        _controllers['phoneNumber']?.text = childInfo['phoneNumber'];
-        _controllers['caseInformation']?.text = childInfo['caseInformation'];
+        _controllers['caseInformation']?.text = childInfo['caseInformation'] ?? '';
       });
+    } catch (e) {
+      print("Error fetching parent/child data: $e");
     }
   }
 
@@ -342,7 +351,24 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
               fontSize: 13,
             ),
           ),
-
+          const SizedBox(height: 4),
+          _isEditMode
+              ? SizedBox(
+                  width: 150,
+                  child: TextFormField(
+                    controller: _controllers['phone'],
+                    textAlign: TextAlign.center,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                )
+              : Text(
+                  parentInfo['phone']?.isNotEmpty == true ? parentInfo['phone']! : 'No Phone',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                ),
           const SizedBox(height: 20),
 
           // Enter Child Mode
@@ -415,8 +441,6 @@ class _ParentProfileScreenState extends State<ParentProfileScreen> {
             _buildInfoRow('Age', 'age', Icons.cake_outlined),
             const SizedBox(height: 12),
             _buildInfoRow('Gender', 'gender', Icons.wc),
-            const SizedBox(height: 12),
-            _buildInfoRow('Phone', 'phoneNumber', Icons.phone),
             const SizedBox(height: 16),
             _buildMultilineInfoRow(
               'Case Information',

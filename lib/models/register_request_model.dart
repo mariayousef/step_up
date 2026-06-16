@@ -36,6 +36,7 @@ class ParentModel {
       "phone_number": phoneNumber,
       "email": email,
       "password": password,
+      "password_confirmation": password, // Required by Laravel
       "user_type": "parent",
     };
   }

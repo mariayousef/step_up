@@ -18,7 +18,6 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:step_up/services/progress_service.dart';
-import 'package:step_up/services/users_data_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  BODY TRAINING SCREEN  –  Exercise List
@@ -415,20 +414,9 @@ class _ExerciseDetailScreenState extends State<_ExerciseDetailScreen> {
   Future<void> _startSession() async {
     setState(() => _isStarting = true);
     try {
-      // Get child ID from users-data if available, otherwise fallback
-      String userId = "child_001";
-      try {
-        final usersData = await UsersDataService.fetchUsersData();
-        if (usersData.data.children.isNotEmpty) {
-          userId = usersData.data.children.first.id.toString();
-        } else {
-          final user = await ApiService.getUser();
-          userId = user != null ? user['id'].toString() : "child_001";
-        }
-      } catch (e) {
-        final user = await ApiService.getUser();
-        userId = user != null ? user['id'].toString() : "child_001";
-      }
+      // Get current user id or fallback
+      final user = await ApiService.getUser();
+      final userId = user != null ? user['id'].toString() : "child_001";
 
       // Start session on Main Backend (Laravel) to get a database record ID (int)
       final laravelSessionId = await ExerciseService.startSession(

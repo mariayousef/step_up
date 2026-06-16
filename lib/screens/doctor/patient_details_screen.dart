@@ -4,6 +4,7 @@ import 'package:step_up/screens/doctor/chat_room_screen.dart';
 import 'package:step_up/models/progress_model.dart';
 import 'package:step_up/services/progress_service.dart';
 import 'package:step_up/development_progress_card.dart';
+import 'package:step_up/ProgressScreen.dart';
 
 class PatientDetailsScreen extends StatefulWidget {
   final Appointment appointment;
@@ -67,8 +68,9 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             const SizedBox(height: 10),
 
             if (widget.appointment.parent?.id != null || widget.appointment.parent?.phoneNumber != null)
-              DevelopmentProgressCard(
-                parentId: widget.appointment.parent?.id ?? widget.appointment.parent?.phoneNumber,
+              ProgressScreen(
+                parentId: widget.appointment.parent?.id?.toString() ?? widget.appointment.parent?.phoneNumber,
+                isEmbedded: true,
               )
             else
                const Text('No progress data available for this patient.', style: TextStyle(color: Colors.grey)),
