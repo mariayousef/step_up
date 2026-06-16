@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:step_up/models/appointment_model.dart';
 import 'package:step_up/screens/doctor/chat_room_screen.dart';
+import 'package:step_up/models/progress_model.dart';
+import 'package:step_up/services/progress_service.dart';
+import 'package:step_up/development_progress_card.dart';
 
 class PatientDetailsScreen extends StatefulWidget {
   final Appointment appointment;
@@ -17,6 +20,11 @@ class PatientDetailsScreen extends StatefulWidget {
 }
 
 class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
+  @override
+  void initState() {
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,18 +63,15 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
             ),
             const SizedBox(height: 30),
 
-            // Mock Data showing progress
-            const Text('Motor Skills Progress', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Patient Progress (This Week)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-            _buildProgressItem('Walking Independently', 0.8),
-            _buildProgressItem('Standing on one foot', 0.4),
-            _buildProgressItem('Climbing stairs', 0.6),
 
-            const SizedBox(height: 24),
-            const Text('Speech Progress', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            _buildProgressItem('Vocabulary (50 words)', 0.9),
-            _buildProgressItem('Two-word sentences', 0.5),
+            if (widget.appointment.parent?.id != null || widget.appointment.parent?.phoneNumber != null)
+              DevelopmentProgressCard(
+                parentId: widget.appointment.parent?.id ?? widget.appointment.parent?.phoneNumber,
+              )
+            else
+               const Text('No progress data available for this patient.', style: TextStyle(color: Colors.grey)),
             
             const SizedBox(height: 24),
             const Text('Booking Notes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -129,30 +134,5 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     );
   }
 
-  Widget _buildProgressItem(String title, double progress) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(title),
-              Text('${(progress * 100).toInt()}%'),
-            ],
-          ),
-          const SizedBox(height: 4),
-          LinearProgressIndicator(
-            value: progress,
-            backgroundColor: Colors.grey.shade200,
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF00796B)),
-            minHeight: 8,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ],
-      ),
-    );
-  }
 }
 

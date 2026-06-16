@@ -4,6 +4,8 @@ import 'package:video_player/video_player.dart';
 
 import 'app_colors.dart';
 import 'models/speech_level_content.dart';
+import 'dart:io';
+import 'package:step_up/services/video_cache_service.dart';
 
 class SpeechStage1Screen extends StatefulWidget {
   final int level;
@@ -54,15 +56,29 @@ class _SpeechStage1ScreenState extends State<SpeechStage1Screen> {
     _videoController = null;
     await oldController?.dispose();
 
-    if (url.isNotEmpty) {
+    String secureUrl = url.startsWith('http://') 
+        ? url.replaceFirst('http://', 'https://') 
+        : url;
+
+    if (secureUrl.isNotEmpty) {
       try {
-        final controller = VideoPlayerController.networkUrl(
-          Uri.parse(url),
-          httpHeaders: {'ngrok-skip-browser-warning': 'true'},
-        );
-        await controller.initialize();
-        controller.play();
-        _videoController = controller;
+        final File? cachedFile = await VideoCacheService.prefetchVideo(secureUrl);
+        
+        if (cachedFile != null && await cachedFile.exists()) {
+          final controller = VideoPlayerController.file(cachedFile);
+          await controller.initialize();
+          controller.play();
+          _videoController = controller;
+        } else {
+          // Fallback to network if caching fails
+          final controller = VideoPlayerController.networkUrl(
+            Uri.parse(secureUrl),
+            httpHeaders: {'ngrok-skip-browser-warning': 'true'},
+          );
+          await controller.initialize();
+          controller.play();
+          _videoController = controller;
+        }
       } catch (e) {
         print("Error loading video: $e");
       }

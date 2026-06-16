@@ -28,6 +28,17 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void initState() {
     super.initState();
     debugPrint("CHAT ROOM START: Doctor ${widget.doctorId} -> Parent ${widget.parentId}");
+    
+    List<String> ids = [widget.doctorId, widget.parentId];
+    ids.sort();
+    ChatService.currentOpenRoom = ids.join('_');
+    _chatService.markRoomAsRead(widget.doctorId, widget.parentId);
+  }
+
+  @override
+  void dispose() {
+    ChatService.currentOpenRoom = "";
+    super.dispose();
   }
 
   void _sendMessage() async {
@@ -177,6 +188,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 final messagesDocs = snapshot.data!.docs;
 
                 return ListView.builder(
+                  reverse: true,
                   padding: const EdgeInsets.only(top: 10, bottom: 20),
                   itemCount: messagesDocs.length,
                   itemBuilder: (context, index) {

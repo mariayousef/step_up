@@ -56,7 +56,20 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
         _currentUserId = foundId ?? 'unknown_parent';
       });
       debugPrint("PARENT CHAT LOADED: Parent $_currentUserId -> Doctor ${widget.doctor.id}");
+      
+      if (_currentUserId.isNotEmpty && _currentUserId != 'unknown_parent') {
+        List<String> ids = [_currentUserId, widget.doctor.id];
+        ids.sort();
+        ChatService.currentOpenRoom = ids.join('_');
+        _chatService.markRoomAsRead(_currentUserId, widget.doctor.id);
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    ChatService.currentOpenRoom = "";
+    super.dispose();
   }
 
   void _sendMessage() async {
@@ -138,8 +151,12 @@ class _DoctorChatScreenState extends State<DoctorChatScreen> {
                 }
 
                 final messagesDocs = snapshot.data!.docs;
+                if (messagesDocs.isEmpty) {
+                  return const Center(child: Text('No messages yet. Say hi!'));
+                }
 
                 return ListView.builder(
+                  reverse: true,
                   padding: const EdgeInsets.all(16),
                   itemCount: messagesDocs.length,
                   itemBuilder: (context, index) {

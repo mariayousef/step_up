@@ -143,7 +143,7 @@ class _SpeechStage3ScreenState extends State<SpeechStage3Screen> {
 
       _showScoreAnimation(response);
       
-      bool isPassed = response.score > 5.0;
+      bool isPassed = response.score >= 50.0;
       
       if (isPassed) {
         await Future.delayed(const Duration(milliseconds: 3000));
@@ -171,7 +171,7 @@ class _SpeechStage3ScreenState extends State<SpeechStage3Screen> {
 
   void _showScoreAnimation(SpeechScoreResponse response) {
     double score = response.score;
-    bool isPassed = score > 5.0;
+    bool isPassed = score >= 50.0;
     
     showDialog(
       context: context,

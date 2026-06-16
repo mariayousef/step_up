@@ -28,16 +28,25 @@ class ExerciseService {
     }
   }
 
-  // ─── Start Exercise Session ─────────────────────────────────────────────────
-  static Future<ExerciseSession> startSession(int exerciseId) async {
+  // ─── Start Exercise Session (Main Backend) ──────────────────────────────────
+  static Future<int> startSession(int exerciseId, int targetReps) async {
     try {
       final response = await ApiService.postJson(
         _sessionsEndpoint,
-        {'exercise_id': exerciseId},
+        {
+          'exercise_id': exerciseId,
+        },
       );
-      return ExerciseSession.fromJson(response['data'] as Map<String, dynamic>);
+      final data = response['data'];
+      final rawId = data['session_id'] ?? data['id'];
+      if (rawId == null) {
+        throw Exception(
+          'Backend response missing session ID. Response data: $data',
+        );
+      }
+      return rawId is int ? rawId : int.parse(rawId.toString());
     } catch (e) {
-      throw Exception('Failed to start exercise session: $e');
+      throw Exception('Failed to start exercise session on main backend: $e');
     }
   }
 

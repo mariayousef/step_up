@@ -41,9 +41,10 @@ class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
       await DoctorAuthService.loginDoctor(email: email, password: password);
 
       if (!mounted) return;
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
+        (route) => false,
       );
     } on ApiException catch (error) {
       _showMessage(error.message);

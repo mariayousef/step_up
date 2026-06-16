@@ -10,7 +10,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:animate_do/animate_do.dart';
 
 class DoctorsListScreen extends StatefulWidget {
-  const DoctorsListScreen({super.key});
+  final Map<String, int> unreadCounts;
+
+  const DoctorsListScreen({super.key, this.unreadCounts = const {}});
 
   @override
   State<DoctorsListScreen> createState() => _DoctorsListScreenState();
@@ -164,6 +166,7 @@ class _DoctorsListScreenState extends State<DoctorsListScreen> {
   Widget _buildBookingCardFromAppointment(BuildContext context, Appointment appointment) {
     final doctor = appointment.doctor;
     const isAccepted = true; // For now, treat all real appointments as accepted or pending
+    final int unread = doctor?.id != null ? widget.unreadCounts[doctor!.id.toString()] ?? 0 : 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -250,7 +253,20 @@ class _DoctorsListScreenState extends State<DoctorsListScreen> {
                     );
                   },
                   icon: const Icon(Icons.chat_bubble_outline),
-                  label: const Text('Chat with Doctor'),
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Chat with Doctor'),
+                      if (unread > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
+                          child: Text(unread.toString(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        )
+                      ]
+                    ],
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -271,6 +287,7 @@ class _DoctorsListScreenState extends State<DoctorsListScreen> {
   Widget _buildBookingCard(BuildContext context, Booking booking) {
     final doctor = booking.doctor;
     final isAccepted = booking.status == BookingStatus.accepted;
+    final int unread = doctor.id != null ? widget.unreadCounts[doctor.id.toString()] ?? 0 : 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -361,7 +378,20 @@ class _DoctorsListScreenState extends State<DoctorsListScreen> {
                     );
                   },
                   icon: const Icon(Icons.chat_bubble_outline),
-                  label: const Text('Chat with Doctor'),
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Chat with Doctor'),
+                      if (unread > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
+                          child: Text(unread.toString(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        )
+                      ]
+                    ],
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,

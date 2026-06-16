@@ -13,6 +13,11 @@ import 'package:latlong2/latlong.dart';
 import 'package:step_up/services/sensor_service.dart';
 import 'package:step_up/screens/parent/doctors_list_screen.dart';
 import 'package:animate_do/animate_do.dart';
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:step_up/services/api_service.dart';
+import 'package:step_up/services/chat_service.dart';
 
 class ChildLocationCard extends StatelessWidget {
   final LatLng childLocation;
@@ -126,15 +131,108 @@ class ParentHomeScreen extends StatefulWidget {
 class _ParentHomeScreenState extends State<ParentHomeScreen> {
   int _selectedIndex = 0;
 
+  bool _hasUnreadMessages = false;
+  Map<String, int> _unreadCounts = {};
+  String _currentParentId = '';
+  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  StreamSubscription? _chatSub;
+
   @override
   void initState() {
     super.initState();
     SensorReadingsController.instance.start();
+    _setupChatListener();
   }
 
-  @override
+  Future<void> _setupChatListener() async {
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initSettings = InitializationSettings(android: androidSettings);
+    await _notificationsPlugin.initialize(initSettings);
+
+    final user = await ApiService.getUser();
+    String? foundId = user?['id']?.toString() ?? user?['phone_number']?.toString();
+    
+    if (foundId == null || foundId == 'unknown_parent' || foundId.isEmpty) {
+      try {
+        final response = await ApiService.getJson('/api/appointments', authorized: true);
+        if (response['data'] is List && (response['data'] as List).isNotEmpty) {
+          final first = response['data'][0];
+          foundId = first['parent_id']?.toString() ?? 
+                    (first['parent'] is Map ? first['parent']['id']?.toString() : null);
+          if (foundId != null) {
+            await ApiService.saveUser({'id': foundId});
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (foundId == null || foundId.isEmpty) return;
+    _currentParentId = foundId;
+
+    _chatSub = FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .where('participants', arrayContains: _currentParentId)
+        .snapshots()
+        .listen((snapshot) {
+      bool anyUnread = false;
+      Map<String, int> newCounts = {};
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final unreadCount = data['unreadCount_$_currentParentId'] ?? 0;
+        
+        String roomId = doc.id;
+        String docId = roomId.replaceFirst(_currentParentId, '').replaceAll('_', '');
+        
+        if (docId.isNotEmpty) {
+          newCounts[docId] = (unreadCount as num).toInt();
+        }
+
+        if (unreadCount > 0) {
+          anyUnread = true;
+          
+          if (ChatService.currentOpenRoom == roomId) {
+            ChatService().markRoomAsRead(_currentParentId, docId);
+          } else {
+             bool isNew = snapshot.docChanges.any((c) => c.doc.id == roomId && (c.type == DocumentChangeType.added || c.type == DocumentChangeType.modified));
+             if (isNew) {
+               String msgText = data['lastMessage'] ?? 'You received a new message';
+               if (_selectedIndex != 3) { // Doctors tab is index 3
+                 _showNotification('New Message', msgText);
+               }
+             }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _unreadCounts = newCounts;
+          _hasUnreadMessages = anyUnread && _selectedIndex != 3;
+        });
+      }
+    });
+  }
+
+  Future<void> _showNotification(String title, String body) async {
+    const androidDetails = AndroidNotificationDetails(
+      'chat_channel_parent',
+      'Parent Chat Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const details = NotificationDetails(android: androidDetails);
+    await _notificationsPlugin.show(
+      DateTime.now().millisecond,
+      title,
+      body,
+      details,
+    );
+  }
+
   void dispose() {
     SensorReadingsController.instance.stop();
+    _chatSub?.cancel();
     super.dispose();
   }
 
@@ -195,15 +293,19 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
             ),
             const LocationScreen(),
             const ProgressScreen(),
-            const DoctorsListScreen(),
+            DoctorsListScreen(unreadCounts: _unreadCounts),
             const ParentProfileScreen(),
           ],
         ),
         bottomNavigationBar: CustomBottomNavBar(
           currentIndex: _selectedIndex,
+          hasUnreadMessages: _hasUnreadMessages,
           onTap: (index) {
             setState(() {
               _selectedIndex = index;
+              if (index == 3) {
+                _hasUnreadMessages = false;
+              }
             });
           },
         ),

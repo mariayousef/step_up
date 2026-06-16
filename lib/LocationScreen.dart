@@ -130,7 +130,7 @@ class _LocationScreenState extends State<LocationScreen> {
     );
 
     try {
-      final int notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final int notificationId = title.hashCode;
       await flutterLocalNotificationsPlugin.show(
         notificationId,
         title,
@@ -730,6 +730,20 @@ class _LocationScreenState extends State<LocationScreen> {
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                    if (_currentP != null && !_isPickingLocation)
+                      Positioned(
+                        bottom: 20,
+                        right: 20,
+                        child: FloatingActionButton(
+                          mini: true,
+                          backgroundColor: Colors.white,
+                          elevation: 4,
+                          onPressed: () {
+                            _mapController.move(_currentP!, 15);
+                          },
+                          child: const Icon(Icons.my_location, color: AppColors.primary),
                         ),
                       ),
                   ],

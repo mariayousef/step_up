@@ -1,11 +1,13 @@
 import 'dart:async';
 
+
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/sensor_reading_model.dart';
 import '../safe_zone_model.dart';
 import 'api_service.dart';
+import 'notification_service.dart';
 
 class SensorService {
   static Future<SensorReading> fetchLatestReading() async {
@@ -45,12 +47,22 @@ class SensorReadingsController {
 
   Timer? _timer;
 
+  // Track the last time an alert was sent to prevent spam (5 min cooldown)
+  DateTime? _lastFallAlert;
+  DateTime? _lastHighHrAlert;
+  DateTime? _lastLowHrAlert;
+  DateTime? _lastHighTempAlert;
+  DateTime? _lastLowTempAlert;
+  bool _wasOutside = false;
+
   void start() {
     if (_timer != null) return;
 
-    fetchLatest();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+    loadSafeZones().then((_) {
       fetchLatest();
+      _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+        fetchLatest();
+      });
     });
   }
 
@@ -68,7 +80,8 @@ class SensorReadingsController {
       print("SENSOR: Success! HR: ${reading.heartRate}, Temp: ${reading.temperature}");
       latestReading.value = reading;
       errorMessage.value = null;
-      _syncLocation(reading);
+      await _syncLocation(reading);
+      _evaluateHealthAlerts(reading);
       return reading;
     } on ApiException catch (error) {
       errorMessage.value = error.message;
@@ -86,7 +99,71 @@ class SensorReadingsController {
     _timer = null;
   }
 
-  void _syncLocation(SensorReading reading) {
+  void _evaluateHealthAlerts(SensorReading reading) {
+    final now = DateTime.now();
+
+    // 1. Fall Detection
+    if (reading.fallDetected) {
+      if (_lastFallAlert == null || now.difference(_lastFallAlert!).inMinutes >= 5) {
+        NotificationService.instance.showNotification(
+          title: '🚨 Fall Detected!',
+          body: 'Attention: A fall has been detected. Please check on the child immediately.',
+        );
+        _lastFallAlert = now;
+      }
+    }
+
+    // 2. Heart Rate Alerts
+    final hr = reading.heartRate;
+    if (hr == null || hr == 0) {
+      if (_lastLowHrAlert == null || now.difference(_lastLowHrAlert!).inMinutes >= 5) {
+        NotificationService.instance.showNotification(
+          title: '⚠️ Sensor Error',
+          body: 'Heart rate reading is 0 or missing. Please check if the sensor is worn correctly.',
+        );
+        _lastLowHrAlert = now; // reuse low hr tracker for 0
+      }
+    } else if (hr > 120) {
+      if (_lastHighHrAlert == null || now.difference(_lastHighHrAlert!).inMinutes >= 5) {
+        NotificationService.instance.showNotification(
+          title: '⚠️ High Heart Rate',
+          body: 'Heart rate is elevated ($hr bpm). Please monitor the child.',
+        );
+        _lastHighHrAlert = now;
+      }
+    } else if (hr < 50) {
+      if (_lastLowHrAlert == null || now.difference(_lastLowHrAlert!).inMinutes >= 5) {
+        NotificationService.instance.showNotification(
+          title: '⚠️ Low Heart Rate',
+          body: 'Heart rate is unusually low ($hr bpm). Please check immediately.',
+        );
+        _lastLowHrAlert = now;
+      }
+    }
+
+    // 3. Temperature Alerts
+    if (reading.temperature != null && reading.temperature! > 0) {
+      if (reading.temperature! > 38.0) {
+        if (_lastHighTempAlert == null || now.difference(_lastHighTempAlert!).inMinutes >= 5) {
+          NotificationService.instance.showNotification(
+            title: '🤒 High Temperature',
+            body: 'Temperature is high (${reading.temperature} °C). The child may have a fever.',
+          );
+          _lastHighTempAlert = now;
+        }
+      } else if (reading.temperature! < 36.0) {
+        if (_lastLowTempAlert == null || now.difference(_lastLowTempAlert!).inMinutes >= 5) {
+          NotificationService.instance.showNotification(
+            title: '❄️ Low Temperature',
+            body: 'Temperature is low (${reading.temperature} °C). Please ensure the child is warm.',
+          );
+          _lastLowTempAlert = now;
+        }
+      }
+    }
+  }
+
+  Future<void> _syncLocation(SensorReading reading) async {
     if (!reading.hasLocation) return;
 
     final location = LatLng(reading.latitude!, reading.longitude!);
@@ -94,7 +171,18 @@ class SensorReadingsController {
     _updateSafeZoneStatus(location);
   }
 
+
+
   void _updateSafeZoneStatus(LatLng location) {
+    bool hasActiveZones = globalSafeZones.any((z) => z.active);
+
+    if (!hasActiveZones) {
+      isChildSafeNotifier.value = true;
+      currentZoneNameNotifier.value = 'No zones configured';
+      _wasOutside = false;
+      return;
+    }
+
     bool isSafe = false;
     String? zoneName;
 
@@ -116,5 +204,17 @@ class SensorReadingsController {
 
     isChildSafeNotifier.value = isSafe;
     currentZoneNameNotifier.value = zoneName;
+
+    if (!isSafe) {
+      if (!_wasOutside) {
+        NotificationService.instance.showNotification(
+          title: 'Safe Zone Alert 🚨',
+          body: 'Attention: Your child has left the specified safe zone!',
+        );
+        _wasOutside = true;
+      }
+    } else {
+      _wasOutside = false;
+    }
   }
 }

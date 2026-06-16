@@ -15,11 +15,11 @@ class Exercise {
 
   factory Exercise.fromJson(Map<String, dynamic> json, {String category = ''}) {
     return Exercise(
-      id: json['id'] as int,
-      name: json['name'] as String,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
       category: json['category'] ?? category,
-      targetReps: json['target_reps'] as int,
-      videoUrl: json['video_url'] as String,
+      targetReps: (json['target_reps'] as num?)?.toInt() ?? 10,
+      videoUrl: json['video_url'] as String? ?? '',
     );
   }
 
@@ -46,7 +46,7 @@ class ExerciseCategory {
 }
 
 class ExerciseSession {
-  final int sessionId;
+  final String sessionId;
   final int exerciseId;
   final String status;
   final DateTime startedAt;
@@ -60,16 +60,16 @@ class ExerciseSession {
 
   factory ExerciseSession.fromJson(Map<String, dynamic> json) {
     return ExerciseSession(
-      sessionId: json['session_id'] as int,
-      exerciseId: json['exercise_id'] as int,
-      status: json['status'] as String,
+      sessionId: json['session_id'].toString(),
+      exerciseId: (json['exercise_id'] as num?)?.toInt() ?? 0,
+      status: json['status'] as String? ?? 'unknown',
       startedAt: DateTime.parse(json['started_at'] as String),
     );
   }
 }
 
 class CompletedSession {
-  final int sessionId;
+  final String sessionId;
   final int exerciseId;
   final String status;
   final int completedReps;
@@ -91,7 +91,7 @@ class CompletedSession {
 
   factory CompletedSession.fromJson(Map<String, dynamic> json) {
     return CompletedSession(
-      sessionId: json['session_id'] as int,
+      sessionId: json['session_id'].toString(),
       exerciseId: json['exercise_id'] as int,
       status: json['status'] as String,
       completedReps: json['completed_reps'] as int,

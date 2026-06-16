@@ -11,6 +11,10 @@ import 'package:step_up/screens/doctor/tools/note_screen.dart';
 import 'package:step_up/services/doctor_service.dart';
 import 'package:step_up/models/appointment_model.dart';
 import 'package:step_up/services/api_service.dart';
+import 'package:step_up/services/chat_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:async';
 
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key});
@@ -26,11 +30,32 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   bool _isLoadingAppointments = false;
   String _currentDoctorId = '';
   String _doctorName = 'Doctor';
+  
+  bool _hasUnreadMessages = false;
+  Map<String, int> _unreadCounts = {}; // parentId -> unreadCount
+  final DateTime _appOpenTime = DateTime.now();
+  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  final List<StreamSubscription> _chatSubscriptions = [];
 
   @override
   void initState() {
     super.initState();
+    _initNotifications();
     _loadInitialData();
+  }
+
+  void _initNotifications() async {
+    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initSettings = InitializationSettings(android: androidSettings);
+    await _notificationsPlugin.initialize(initSettings);
+  }
+
+  @override
+  void dispose() {
+    for (var sub in _chatSubscriptions) {
+      sub.cancel();
+    }
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
@@ -46,8 +71,11 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         _currentDoctorId = user['id']?.toString() ?? 
                            user['phone_number']?.toString() ?? 
                            '';
-        _doctorName = user['name'] ?? 'Doctor';
+        _doctorName = user['name'] ?? user['full_name'] ?? 'Doctor';
       });
+      if (_currentDoctorId.isNotEmpty) {
+        _setupMessageListeners();
+      }
     }
   }
 
@@ -82,6 +110,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
             setState(() => _currentDoctorId = discoveredId);
             await ApiService.saveUser({'id': discoveredId, 'name': _doctorName});
             debugPrint("DOCTOR ID DISCOVERED FROM APPOINTMENTS: $discoveredId");
+            _setupMessageListeners();
           }
         }
       }
@@ -90,6 +119,81 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         setState(() => _isLoadingAppointments = false);
       }
     }
+  }
+
+  void _setupMessageListeners() {
+    if (_currentDoctorId.isEmpty) return;
+
+    for (var sub in _chatSubscriptions) {
+      sub.cancel();
+    }
+    _chatSubscriptions.clear();
+
+    var sub = FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .where('participants', arrayContains: _currentDoctorId)
+        .snapshots()
+        .listen((snapshot) {
+      bool anyUnread = false;
+      Map<String, int> newCounts = {};
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final unreadCount = data['unreadCount_$_currentDoctorId'] ?? 0;
+        
+        // Extract parentId from roomId (roomId is built by sorting doctorId and parentId)
+        String roomId = doc.id;
+        String pId = roomId.replaceFirst(_currentDoctorId, '').replaceAll('_', '');
+        
+        if (pId.isNotEmpty) {
+          newCounts[pId] = (unreadCount as num).toInt();
+        }
+
+        if (unreadCount > 0) {
+          anyUnread = true;
+          
+          // Show notification only if it's a new or modified unread state, AND not in the open room
+          if (ChatService.currentOpenRoom == roomId) {
+            // Already in room, mark as read automatically to avoid ghost unread badges
+            ChatService().markRoomAsRead(_currentDoctorId, pId);
+          } else {
+             // We could check if it's a new change to avoid spamming
+             bool isNew = snapshot.docChanges.any((c) => c.doc.id == roomId && (c.type == DocumentChangeType.added || c.type == DocumentChangeType.modified));
+             if (isNew) {
+               String msgText = data['lastMessage'] ?? 'You received a new message';
+               if (_currentIndex != 2) {
+                 _showNotification('New Message', msgText);
+               }
+             }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _unreadCounts = newCounts;
+          _hasUnreadMessages = anyUnread && _currentIndex != 2;
+        });
+      }
+    });
+
+    _chatSubscriptions.add(sub);
+  }
+
+  Future<void> _showNotification(String title, String body) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'chat_channel_id',
+      'Chat Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const NotificationDetails details = NotificationDetails(android: androidDetails);
+    await _notificationsPlugin.show(
+      DateTime.now().millisecond,
+      title,
+      body,
+      details,
+    );
   }
 
   @override
@@ -101,8 +205,19 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       _buildToolsTab(),
     ];
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        setState(() {
+          _currentIndex = 0;
+          if (_currentIndex == 2) {
+            _hasUnreadMessages = false;
+          }
+        });
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF0F4F8),
       body: SafeArea(
         child: Column(
           children: [
@@ -117,6 +232,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         ),
       ),
       bottomNavigationBar: _buildBottomNav(),
+      ),
     );
   }
 
@@ -189,7 +305,14 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   Widget _buildNavItem(int index, IconData icon, String label) {
     bool isSelected = _currentIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        setState(() {
+          _currentIndex = index;
+          if (index == 2) {
+            _hasUnreadMessages = false; // Clear badge when chats tab is opened
+          }
+        });
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -199,7 +322,26 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         ),
         child: Row(
           children: [
-            Icon(icon, color: isSelected ? const Color(0xFF00796B) : Colors.grey, size: 26),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, color: isSelected ? const Color(0xFF00796B) : Colors.grey, size: 26),
+                if (index == 2 && _hasUnreadMessages)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             if (isSelected) ...[
               const SizedBox(width: 8),
               Text(label, style: const TextStyle(color: Color(0xFF00796B), fontWeight: FontWeight.bold)),
@@ -211,6 +353,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   }
 
   Widget _buildDashboardTab() {
+    int totalUnread = _unreadCounts.values.fold(0, (sum, count) => sum + count);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -218,7 +362,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         children: [
           FadeInUp(
             duration: const Duration(milliseconds: 500),
-            child: _buildQuickActions(),
+            child: _buildQuickActions(totalUnread),
           ),
           const SizedBox(height: 25),
           const Text('Your Stats', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -227,7 +371,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
             children: [
               Expanded(child: _buildStatCard('Active Cases', _appointments.length.toString(), Icons.people, const Color(0xFF2196F3))),
               const SizedBox(width: 15),
-              Expanded(child: _buildStatCard('Messages', '0', Icons.message, const Color(0xFFFF9800))),
+              Expanded(child: _buildStatCard('Messages', totalUnread.toString(), Icons.message, const Color(0xFFFF9800))),
             ],
           ),
           const SizedBox(height: 25),
@@ -248,7 +392,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildQuickActions(int totalUnread) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -258,28 +402,49 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildActionItem(Icons.add_task_rounded, 'New Case', Colors.teal, () => setState(() => _currentIndex = 1)),
-            _buildActionItem(Icons.chat_rounded, 'Messages', Colors.blue, () => setState(() => _currentIndex = 2)),
+            _buildActionItem(Icons.chat_rounded, 'Messages', Colors.blue, () => setState(() => _currentIndex = 2), badgeCount: totalUnread),
             _buildActionItem(Icons.history_edu_rounded, 'Add Note', Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NoteScreen())).then((_) => _loadRecentNotes())),
-            _buildActionItem(Icons.settings_rounded, 'Settings', Colors.grey, () {}),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildActionItem(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _buildActionItem(IconData icon, String label, Color color, VoidCallback onTap, {int badgeCount = 0}) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
-            ),
-            child: Icon(icon, color: color, size: 28),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+                ),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              if (badgeCount > 0)
+                Positioned(
+                  top: -5,
+                  right: -5,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: Text(
+                      badgeCount > 9 ? '9+' : badgeCount.toString(),
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.black54)),
@@ -414,15 +579,17 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
             itemCount: _appointments.length,
             itemBuilder: (context, index) {
               final appointment = _appointments[index];
+              final parentId = appointment.parent?.id?.toString() ?? appointment.parent?.phoneNumber ?? '';
+              final unread = _unreadCounts[parentId] ?? 0;
               return FadeInRight(
                 delay: Duration(milliseconds: 100 * index),
-                child: _buildChatListItem(appointment),
+                child: _buildChatListItem(appointment, unreadCount: unread),
               );
             },
           );
   }
 
-  Widget _buildChatListItem(Appointment appointment) {
+  Widget _buildChatListItem(Appointment appointment, {int unreadCount = 0}) {
     final parentName = appointment.parent?.name ?? 'Parent';
     final parentId = appointment.parent?.id?.toString() ?? appointment.parent?.phoneNumber ?? 'N/A';
 
@@ -450,7 +617,29 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         ),
         child: Row(
           children: [
-            const CircleAvatar(radius: 25, backgroundColor: Color(0xFFB2DFDB), child: Icon(Icons.person, color: Color(0xFF00796B))),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const CircleAvatar(radius: 25, backgroundColor: Color(0xFFB2DFDB), child: Icon(Icons.person, color: Color(0xFF00796B))),
+                if (unreadCount > 0)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: Text(
+                        unreadCount > 9 ? '9+' : unreadCount.toString(),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(width: 15),
             Expanded(
               child: Column(

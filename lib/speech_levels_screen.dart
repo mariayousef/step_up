@@ -21,13 +21,6 @@ class SpeechLevelsScreen extends StatelessWidget {
       color: Color(0xFFFF9800),
       icon: Icons.record_voice_over_rounded,
     ),
-    _SpeechLevel(
-      level: 3,
-      title: 'Level 3',
-      subtitle: 'Words',
-      color: Color(0xFF2196F3),
-      icon: Icons.chat_bubble_outline_rounded,
-    ),
   ];
 
   @override
