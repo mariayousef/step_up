@@ -1,3 +1,5 @@
+import '../services/api_service.dart';
+
 class Exercise {
   final int id;
   final String name;
@@ -14,12 +16,30 @@ class Exercise {
   });
 
   factory Exercise.fromJson(Map<String, dynamic> json, {String category = ''}) {
+    String urlStr = json['video_url']?.toString() ?? '';
+    
+    // Replace local server URLs with the ngrok base URL
+    if (urlStr.contains('127.0.0.1:8000')) {
+      urlStr = urlStr.replaceAll('http://127.0.0.1:8000', ApiService.baseUrl);
+      urlStr = urlStr.replaceAll('https://127.0.0.1:8000', ApiService.baseUrl);
+    } else if (urlStr.contains('localhost:8000')) {
+      urlStr = urlStr.replaceAll('http://localhost:8000', ApiService.baseUrl);
+      urlStr = urlStr.replaceAll('https://localhost:8000', ApiService.baseUrl);
+    } else if (urlStr.isNotEmpty && !urlStr.startsWith('http')) {
+      if (!urlStr.startsWith('/')) {
+        urlStr = '/$urlStr';
+      }
+      urlStr = '${ApiService.baseUrl}$urlStr';
+    }
+    
+    urlStr = urlStr.replaceAll('http://', 'https://');
+
     return Exercise(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name'] as String? ?? '',
       category: json['category'] ?? category,
       targetReps: (json['target_reps'] as num?)?.toInt() ?? 10,
-      videoUrl: json['video_url'] as String? ?? '',
+      videoUrl: urlStr,
     );
   }
 

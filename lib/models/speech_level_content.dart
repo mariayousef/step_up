@@ -1,3 +1,5 @@
+import 'package:step_up/services/api_service.dart';
+
 class SpeechLevelContent {
   final String letter;
   final List<SpeechWord> words;
@@ -56,7 +58,14 @@ class SpeechWord {
   }
 
   static String _fixUrl(dynamic url) {
-    if (url == null) return '';
-    return url.toString().replaceAll('http://', 'https://');
+    if (url == null || url.toString().isEmpty) return '';
+    String urlStr = url.toString();
+    if (!urlStr.startsWith('http')) {
+      if (!urlStr.startsWith('/')) {
+        urlStr = '/$urlStr';
+      }
+      urlStr = '${ApiService.baseUrl}$urlStr';
+    }
+    return urlStr.replaceAll('http://', 'https://');
   }
 }

@@ -32,26 +32,26 @@ class VideoCacheService {
   static Future<File?> _downloadVideo(String url) async {
     try {
       final dir = await getTemporaryDirectory();
-      final fileName = url.hashCode.toString() + '.mp4';
+      // Added _v2 to filename to ignore previously corrupted partial downloads
+      final fileName = url.hashCode.toString() + '_v2.mp4';
       final file = File('${dir.path}/$fileName');
+      final tmpFile = File('${dir.path}/$fileName.tmp');
 
       if (await file.exists()) {
-        // Check if it's a valid video file (> 20KB)
-        // This prevents caching HTML error pages from ngrok
         if (await file.length() > 20000) {
           return file;
         } else {
-          await file.delete(); // Delete corrupted/invalid cache
+          await file.delete(); 
         }
       }
 
-      // Download
+      // Download to a temporary file first (atomic download)
       await _dio.download(
         url,
-        file.path,
+        tmpFile.path,
         options: Options(
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(minutes: 5), // Increased timeout for large videos
+          sendTimeout: const Duration(minutes: 5),
           headers: {
             'ngrok-skip-browser-warning': 'true',
             'Accept': '*/*',
@@ -59,10 +59,14 @@ class VideoCacheService {
         ),
       );
 
-      // Verify downloaded file size
-      if (await file.exists() && await file.length() < 20000) {
-        await file.delete();
-        throw Exception("Downloaded file is too small, likely an error page.");
+      // Verify downloaded tmp file size
+      if (await tmpFile.exists()) {
+        if (await tmpFile.length() < 20000) {
+          await tmpFile.delete();
+          throw Exception("Downloaded file is too small, likely an error page.");
+        }
+        // Rename tmp to final file only if download succeeds completely
+        await tmpFile.rename(file.path);
       }
 
       return file;
@@ -81,7 +85,7 @@ class VideoCacheService {
       final encodedUrl = secureUrl.replaceAll(' ', '%20');
       
       final dir = await getTemporaryDirectory();
-      final fileName = encodedUrl.hashCode.toString() + '.mp4';
+      final fileName = encodedUrl.hashCode.toString() + '_v2.mp4';
       final file = File('${dir.path}/$fileName');
 
       if (await file.exists()) {

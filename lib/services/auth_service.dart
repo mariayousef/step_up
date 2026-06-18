@@ -55,9 +55,11 @@ class AuthService {
     }
   }
 
-  // Parent Login
   Future<bool> login(String email, String password) async {
     try {
+      // Clear old data before login to ensure we don't use old tokens
+      await ApiService.clearAll();
+
       final response = await ApiService.postJson('/api/auth/login', {
         'email': email,
         'password': password,

@@ -7,7 +7,7 @@ import '../models/speech_level_content.dart';
 import 'api_service.dart';
 
 class SpeechService {
-  static const String baseUrl = 'https://claribel-inescapable-ingrid.ngrok-free.dev/api';
+  static const String baseUrl = '${ApiService.baseUrl}/api';
   final Dio _dio = Dio();
 
   SpeechService() {

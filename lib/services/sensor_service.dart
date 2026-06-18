@@ -1,8 +1,10 @@
 import 'dart:async';
 
 
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/sensor_reading_model.dart';
 import '../safe_zone_model.dart';
@@ -58,12 +60,30 @@ class SensorReadingsController {
   void start() {
     if (_timer != null) return;
 
-    loadSafeZones().then((_) {
-      fetchLatest();
-      _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _loadPersistedReading().then((_) {
+      loadSafeZones().then((_) {
         fetchLatest();
+        _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+          fetchLatest();
+        });
       });
     });
+  }
+
+  Future<void> _loadPersistedReading() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final dataStr = prefs.getString('latest_sensor_reading');
+      if (dataStr != null) {
+        final Map<String, dynamic> data = jsonDecode(dataStr);
+        // Only set it if we don't already have a newer reading
+        if (latestReading.value == null) {
+          latestReading.value = SensorReading.fromJson(data);
+        }
+      }
+    } catch (e) {
+      print("Error loading persisted reading: $e");
+    }
   }
 
   Future<SensorReading?> fetchLatest() async {
@@ -76,9 +96,67 @@ class SensorReadingsController {
 
     try {
       print("SENSOR: Fetching latest reading...");
-      final reading = await SensorService.fetchLatestReading();
+      SensorReading reading = await SensorService.fetchLatestReading();
+      
+      final previousReading = latestReading.value;
+      
+      int? finalHeartRate = reading.heartRate;
+      double? finalTemp = reading.temperature;
+      double? finalLat = reading.latitude;
+      double? finalLng = reading.longitude;
+      int? finalSat = reading.satellites;
+
+      if (finalHeartRate == null || finalHeartRate <= 0) {
+        finalHeartRate = previousReading?.heartRate;
+      }
+      if (finalHeartRate != null && finalHeartRate <= 0) {
+        finalHeartRate = null;
+      }
+
+      if (finalTemp == null || finalTemp <= 0) {
+        finalTemp = previousReading?.temperature;
+      }
+      if (finalTemp != null && finalTemp <= 0) {
+        finalTemp = null;
+      }
+
+      if (finalLat == null || finalLat == 0.0) {
+        finalLat = previousReading?.latitude;
+      }
+      if (finalLat != null && finalLat == 0.0) {
+        finalLat = null;
+      }
+
+      if (finalLng == null || finalLng == 0.0) {
+        finalLng = previousReading?.longitude;
+      }
+      if (finalLng != null && finalLng == 0.0) {
+        finalLng = null;
+      }
+
+      if (finalSat == null || finalSat <= 0) {
+        finalSat = previousReading?.satellites;
+      }
+      if (finalSat != null && finalSat <= 0) {
+        finalSat = null;
+      }
+
+      reading = reading.copyWith(
+        heartRate: finalHeartRate,
+        temperature: finalTemp,
+        latitude: finalLat,
+        longitude: finalLng,
+        satellites: finalSat,
+      );
+
       print("SENSOR: Success! HR: ${reading.heartRate}, Temp: ${reading.temperature}");
       latestReading.value = reading;
+      
+      // Persist the reading so it survives logouts and restarts
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('latest_sensor_reading', jsonEncode(reading.toJson()));
+      });
+
       errorMessage.value = null;
       await _syncLocation(reading);
       _evaluateHealthAlerts(reading);

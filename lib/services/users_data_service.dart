@@ -6,20 +6,74 @@ class UsersDataService {
 
   static Future<UsersDataResponse> fetchUsersData() async {
     try {
-      final token = await ApiService.getToken();
-      final user = await ApiService.getUser();
-      final userId = user != null ? user['id'] : null;
-
-      String url = _endpoint;
-      
-      if (userId != null) {
-        url += '?id=$userId&token=$token';
-      } else if (token != null) {
-        url += '?token=$token';
+      // 1. First priority: The local data saved during login
+      final localData = await ApiService.getUser();
+      if (localData != null) {
+        if (localData.containsKey('parents') || localData.containsKey('children') || localData.containsKey('doctors')) {
+          final parsedLocal = UsersDataResponse.fromJson({
+            'status': true,
+            'message': 'Loaded from local storage',
+            'data': localData,
+          });
+          
+          if (parsedLocal.data.parents.isNotEmpty || parsedLocal.data.children.isNotEmpty || parsedLocal.data.doctors.isNotEmpty) {
+            return parsedLocal;
+          }
+        }
       }
 
-      final response = await ApiService.getJson(url, authorized: true);
-      return UsersDataResponse.fromJson(response);
+      // 2. Second priority: Fetch from backend with required query parameters
+      try {
+        final token = await ApiService.getToken();
+        
+        // Robust userId extraction
+        dynamic userId = localData != null ? localData['id'] : null;
+        if (userId == null && localData != null) {
+          if (localData['user'] is Map) userId = localData['user']['id'];
+          else if (localData['parent'] is Map) userId = localData['parent']['id'];
+          else if (localData['data'] is Map) userId = localData['data']['id'];
+        }
+
+        String url = _endpoint;
+        if (userId != null) {
+          url += '?id=$userId&token=$token';
+        } else if (token != null) {
+          url += '?token=$token';
+        }
+
+        print("UsersDataService: Fetching from $url (Resolved userId: $userId)");
+        final response = await ApiService.getJson(url, authorized: true);
+        final parsed = UsersDataResponse.fromJson(response);
+        
+        // Failsafe: If the backend STILL returns the entire database, filter it!
+        if (parsed.data.parents.length > 1 && userId != null) {
+          final targetId = int.tryParse(userId.toString()) ?? 0;
+          final matchedParents = parsed.data.parents.where((p) => p.id == targetId).toList();
+          if (matchedParents.isNotEmpty) {
+            // Found the specific parent, now find their children
+            final matchedChildren = parsed.data.children.where((c) => c.parentId == targetId).toList();
+            return UsersDataResponse(
+              status: true,
+              message: 'Filtered local database',
+              data: UsersData(
+                parents: matchedParents,
+                children: matchedChildren,
+                doctors: parsed.data.doctors,
+              )
+            );
+          }
+        }
+        
+        return parsed;
+      } catch (e) {
+        print("API /users-data error: $e");
+      }
+
+      return UsersDataResponse(
+        status: false, 
+        message: 'No data found', 
+        data: UsersData(parents: [], children: [], doctors: [])
+      );
     } catch (e) {
       throw Exception('Failed to fetch users data: $e');
     }

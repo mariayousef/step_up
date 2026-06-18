@@ -371,14 +371,17 @@ class _ExerciseDetailScreenState extends State<_ExerciseDetailScreen> {
           : widget.exercise.videoUrl;
       final encodedUrl = secureUrl.replaceAll(' ', '%20');
       
-      // Get the video file (it will download it if not cached yet)
-      final File? cachedFile = await VideoCacheService.prefetchVideo(encodedUrl);
+      // Check if we already have it cached
+      final File? cachedFile = await VideoCacheService.getCachedVideoFile(encodedUrl);
       
       VideoPlayerController ctrl;
       if (cachedFile != null && await cachedFile.exists()) {
         ctrl = VideoPlayerController.file(cachedFile);
       } else {
-        // Fallback to network if caching fails
+        // Start caching in the background but DON'T wait for it
+        VideoCacheService.prefetchVideo(encodedUrl);
+        
+        // Play immediately from the network so the user doesn't wait for 60MB to download
         ctrl = VideoPlayerController.networkUrl(
           Uri.parse(encodedUrl),
           httpHeaders: const {

@@ -29,6 +29,38 @@ class SensorReading {
     required this.fallDetected,
   });
 
+  SensorReading copyWith({
+    int? deviceId,
+    int? heartRate,
+    double? temperature,
+    double? accX,
+    double? accY,
+    double? accZ,
+    double? gyroX,
+    double? gyroY,
+    double? gyroZ,
+    double? latitude,
+    double? longitude,
+    int? satellites,
+    bool? fallDetected,
+  }) {
+    return SensorReading(
+      deviceId: deviceId ?? this.deviceId,
+      heartRate: heartRate ?? this.heartRate,
+      temperature: temperature ?? this.temperature,
+      accX: accX ?? this.accX,
+      accY: accY ?? this.accY,
+      accZ: accZ ?? this.accZ,
+      gyroX: gyroX ?? this.gyroX,
+      gyroY: gyroY ?? this.gyroY,
+      gyroZ: gyroZ ?? this.gyroZ,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      satellites: satellites ?? this.satellites,
+      fallDetected: fallDetected ?? this.fallDetected,
+    );
+  }
+
   bool get hasLocation => latitude != null && longitude != null;
 
   factory SensorReading.fromJson(Map<String, dynamic> json) {

@@ -11,7 +11,8 @@ class ApiException implements Exception {
 }
 
 class ApiService {
-  static const String baseUrl = "https://claribel-inescapable-ingrid.ngrok-free.dev";
+  static const String baseUrl = "https://headcount-curator-hangover.ngrok-free.dev";
+                               //https://headcount-curator-hangover.ngrok-free.dev
 
   static Future<Map<String, String>> _headers({bool authorized = false}) async {
     final headers = {
@@ -128,7 +129,8 @@ class ApiService {
     if (response is Map) {
       final token = response['token'] ?? 
                     response['access_token'] ?? 
-                    (response['data'] is Map ? response['data']['token'] : null);
+                    (response['data'] is Map ? (response['data']['token'] ?? response['data']['access_token']) : null) ??
+                    (response['authorization'] is Map ? response['authorization']['token'] : null);
       
       if (token != null) {
         print("TOKEN FOUND: $token");
