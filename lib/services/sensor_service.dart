@@ -141,12 +141,20 @@ class SensorReadingsController {
         finalSat = null;
       }
 
-      reading = reading.copyWith(
+      reading = SensorReading(
+        deviceId: reading.deviceId,
         heartRate: finalHeartRate,
         temperature: finalTemp,
+        accX: reading.accX,
+        accY: reading.accY,
+        accZ: reading.accZ,
+        gyroX: reading.gyroX,
+        gyroY: reading.gyroY,
+        gyroZ: reading.gyroZ,
         latitude: finalLat,
         longitude: finalLng,
         satellites: finalSat,
+        fallDetected: reading.fallDetected,
       );
 
       print("SENSOR: Success! HR: ${reading.heartRate}, Temp: ${reading.temperature}");

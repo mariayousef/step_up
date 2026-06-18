@@ -46,10 +46,22 @@ class UsersDataService {
         final parsed = UsersDataResponse.fromJson(response);
         
         // Failsafe: If the backend STILL returns the entire database, filter it!
-        if (parsed.data.parents.length > 1 && userId != null) {
-          final targetId = int.tryParse(userId.toString()) ?? 0;
-          final matchedParents = parsed.data.parents.where((p) => p.id == targetId).toList();
+        if (parsed.data.parents.length > 1) {
+          dynamic userEmail = localData != null ? localData['email'] : null;
+          List<ParentData> matchedParents = [];
+
+          if (userId != null) {
+            final targetId = int.tryParse(userId.toString()) ?? 0;
+            matchedParents = parsed.data.parents.where((p) => p.id == targetId).toList();
+          }
+
+          if (matchedParents.isEmpty && userEmail != null) {
+            final emailStr = userEmail.toString().trim().toLowerCase();
+            matchedParents = parsed.data.parents.where((p) => p.email.trim().toLowerCase() == emailStr).toList();
+          }
+
           if (matchedParents.isNotEmpty) {
+            final targetId = matchedParents.first.id;
             // Found the specific parent, now find their children
             final matchedChildren = parsed.data.children.where((c) => c.parentId == targetId).toList();
             return UsersDataResponse(
