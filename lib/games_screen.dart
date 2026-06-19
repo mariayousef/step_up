@@ -69,11 +69,11 @@ class GamesScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         _GameCardLarge(
-                          title: 'Math Man',
-                          subtitle: 'Solve math equations Pac-Man style',
+                          title: 'Number Chart',
+                          subtitle: 'one hundred number chart game',
                           icon: Icons.calculate_rounded,
                           color: Colors.purple,
-                          url: 'https://www.abcya.com/games/math_man',
+                          url: 'https://www.abcya.com/games/one_hundred_number_chart_game',
                           delay: 900,
                         ),
                       ]
@@ -89,20 +89,20 @@ class GamesScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.start, // Align to top
                         children: [
                           _GameCardLarge(
-                            title: 'Fuzz Bugs Hop',
-                            subtitle: 'Fun jumping & matching game',
+                            title: 'submarine dash',
+                            subtitle: 'Fun submarine dash game',
                             icon: Icons.sports_esports_rounded,
                             color: Colors.green,
-                            url: 'https://www.abcya.com/games/fuzz_bugs_factory_hop',
+                            url: 'https://www.abcya.com/games/submarine_dash',
                             delay: 300,
                           ),
                           const SizedBox(height: 16),
                           _GameCardLarge(
-                            title: 'Shapes Geometry',
-                            subtitle: 'Explore shapes & geometry',
+                            title: 'contraction action',
+                            subtitle: 'Fun contraction action game',
                             icon: Icons.category_rounded,
                             color: Colors.orange,
-                            url: 'https://www.abcya.com/games/mobile/shapes_geometry_game',
+                            url: 'https://www.abcya.com/games/contraction_action',
                             delay: 700,
                           ),
                         ],
